@@ -1,0 +1,165 @@
+#!/usr/bin/env python
+# by Dominik Stanisław Suchora <suchora.dominik7@gmail.com>
+# License: GNU GPLv3
+
+import sys
+import os
+import json
+
+from hdporncomics import hdporncomics
+
+hdpo = hdporncomics(wait=1.5, logger=sys.stdout)
+hdpo.login(os.environ["HDPORNCOMICS_EMAIL"], os.environ["HDPORNCOMICS_PASSWORD"])
+
+
+def writejson(fname, x):
+    with open(fname, "w") as f:
+        f.write(json.dumps(x, indent=2))
+
+
+os.chdir("examples")
+
+
+writejson(
+    "comic.json",
+    hdpo.get_comic(
+        "https://hdporncomics.com/care-for-the-caremare-ongoing-furries-tv-movies-sex-comic/",
+        comments=1,
+    ),
+)
+
+writejson(
+    "gay-comic.json",
+    hdpo.get_comic(
+        "https://hdporncomics.com/gay-manga/shadbase-hit-or-miss-me-with-that-gay-shit-eng-gay-manga/",
+        comments=1,
+    ),
+)
+
+writejson(
+    "manhwa.json",
+    hdpo.get_manhwa(
+        "https://hdporncomics.com/manhwa/i-have-to-sleep-with-a-stranger-new-manhwa-porn/",
+        comments=1,
+    ),
+)
+
+writejson(
+    "manhwa-chapter.json",
+    hdpo.get_manhwa_chapter(
+        "https://hdporncomics.com/manhwa/i-have-to-sleep-with-a-stranger-new-manhwa-porn/chapter-1/",
+        comments=1,
+    ),
+)
+
+for i in hdpo.get_pages("https://hdporncomics.com/"):
+    writejson("comic-page.json", i)
+    break
+
+for i in hdpo.get_pages("https://hdporncomics.com/artist/disarten/"):
+    writejson("artist-page.json", i)
+    break
+
+for i in hdpo.get_pages("https://hdporncomics.com/gay-manga/"):
+    writejson("gay-comic-page.json", i)
+    break
+
+for i in hdpo.get_pages("https://hdporncomics.com/manhwa/"):
+    writejson("manhwa-page.json", i)
+    break
+
+writejson(
+    "subscriptions.json",
+    hdpo.get_subscriptions(),
+)
+
+for i in hdpo.get_history():
+    writejson(
+        "history.json",
+        i,
+    )
+    break
+
+for i in hdpo.get_liked():
+    writejson("likes.json", i)
+    break
+
+for i in hdpo.get_favorites():
+    writejson("favorites.json", i)
+    break
+
+for i in hdpo.get_user_comments():
+    writejson("user-comments.json", i)
+    break
+
+writejson(
+    "user.json",
+    hdpo.get_user("https://hdporncomics.com/author/yuri-lover/"),
+)
+
+writejson(
+    "stats.json",
+    hdpo.get_stats(),
+)
+
+writejson(
+    "dashboard-stats.json",
+    hdpo.get_dashboard_stats(),
+)
+
+writejson(
+    "terms-artist.json",
+    hdpo.get_terms("artist"),
+)
+
+writejson(
+    "terms-tags.json",
+    hdpo.get_terms("tags"),
+)
+
+writejson(
+    "terms-characters.json",
+    hdpo.get_terms("characters"),
+)
+
+for i in hdpo.get_comics_list("artists", sort="views"):
+    writejson("comic-artists-list.json", i)
+    break
+
+for i in hdpo.get_comics_list("parodies", sort="count"):
+    writejson("comic-parodies-list.json", i)
+    break
+
+for i in hdpo.get_comics_list("groups"):
+    writejson("comic-groups-list.json", i)
+    break
+
+writejson(
+    "gay-comic-groups-list.json",
+    hdpo.get_gay_groups_list(),
+)
+
+writejson(
+    "gay-comic-genres-list.json",
+    hdpo.get_gay_genres_list(),
+)
+
+writejson(
+    "gay-comic-languages-list.json",
+    hdpo.get_gay_languages_list(),
+)
+
+writejson(
+    "manhwa-artists-list.json",
+    hdpo.get_manhwa_artists_list(),
+)
+
+writejson(
+    "manhwa-authors-list.json",
+    hdpo.get_manhwa_authors_list(),
+)
+
+writejson(
+    "manhwa-genres-list.json",
+    hdpo.get_manhwa_genres_list(),
+)
