@@ -25,13 +25,6 @@ class AuthorizationError(Exception):
     pass
 
 
-def strtosha256(string):
-    if isinstance(string, str):
-        string = string.encode()
-
-    return hashlib.sha256(string).hexdigest()
-
-
 def strtomd5(string):
     if isinstance(string, str):
         string = string.encode()
@@ -452,7 +445,9 @@ class hdporncomics:
         manhwa["cover"] = urljoin(ref, manhwa["cover"])
 
         for i in manhwa["chapters"]:
-            i["link"] = urljoin(ref, i["link"])
+            i["link"] = urljoin(
+                ref, i["link"]
+            )  # they might have '//' inside them but they are the same as in the browser
             i["date"] = self.conv_chapter_datetime(i["date"])
 
         return manhwa
