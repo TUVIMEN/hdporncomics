@@ -17,14 +17,35 @@ def writejson(fname, x):
         f.write(json.dumps(x, indent=2))
 
 
+def writegen(fname, gen, pages=1):
+    page = 1
+    f = open(fname, "w")
+    for i in gen:
+        f.write(json.dumps(i, indent=2))
+        f.write("\n")
+        if page >= pages:
+            break
+        page += 1
+
+    f.close()
+
+
 os.chdir("examples")
 
+writegen("comments.json", hdpo.get_comments(72466))
 
 writejson(
     "comic.json",
     hdpo.get_comic(
         "https://hdporncomics.com/care-for-the-caremare-ongoing-furries-tv-movies-sex-comic/",
         comments=1,
+    ),
+)
+
+writejson(
+    "comic2.json",
+    hdpo.get_comic(
+        "https://hdporncomics.com/dictatorship-ongoing-fetish-nonconsent-reluctance-monsters-tentacles-sex-comic/",
     ),
 )
 
@@ -52,45 +73,28 @@ writejson(
     ),
 )
 
-for i in hdpo.get_pages("https://hdporncomics.com/"):
-    writejson("comic-page.json", i)
-    break
+writegen("comic-page.json", hdpo.get_pages("https://hdporncomics.com/"))
 
-for i in hdpo.get_pages("https://hdporncomics.com/artist/disarten/"):
-    writejson("artist-page.json", i)
-    break
+writegen(
+    "artist-page.json", hdpo.get_pages("https://hdporncomics.com/artist/disarten/")
+)
 
-for i in hdpo.get_pages("https://hdporncomics.com/gay-manga/"):
-    writejson("gay-comic-page.json", i)
-    break
+writegen("gay-comic-page.json", hdpo.get_pages("https://hdporncomics.com/gay-manga/"))
 
-for i in hdpo.get_pages("https://hdporncomics.com/manhwa/"):
-    writejson("manhwa-page.json", i)
-    break
+writegen("manhwa-page.json", hdpo.get_pages("https://hdporncomics.com/manhwa/"))
 
 writejson(
     "subscriptions.json",
     hdpo.get_subscriptions(),
 )
 
-for i in hdpo.get_history():
-    writejson(
-        "history.json",
-        i,
-    )
-    break
+writegen("history.json", hdpo.get_history())
 
-for i in hdpo.get_liked():
-    writejson("likes.json", i)
-    break
+writegen("likes.json", hdpo.get_liked())
 
-for i in hdpo.get_favorites():
-    writejson("favorites.json", i)
-    break
+writegen("favorites.json", hdpo.get_favorites())
 
-for i in hdpo.get_user_comments():
-    writejson("user-comments.json", i)
-    break
+writegen("user-comments.json", hdpo.get_user_comments())
 
 writejson(
     "user.json",
@@ -122,17 +126,11 @@ writejson(
     hdpo.get_terms("characters"),
 )
 
-for i in hdpo.get_comics_list("artists", sort="views"):
-    writejson("comic-artists-list.json", i)
-    break
+writegen("comic-artists-list.json", hdpo.get_comics_list("artists", sort="views"))
 
-for i in hdpo.get_comics_list("parodies", sort="count"):
-    writejson("comic-parodies-list.json", i)
-    break
+writegen("comic-parodies-list.json", hdpo.get_comics_list("parodies", sort="count"))
 
-for i in hdpo.get_comics_list("groups"):
-    writejson("comic-groups-list.json", i)
-    break
+writegen("comic-groups-list.json", hdpo.get_comics_list("groups"))
 
 writejson(
     "gay-comic-groups-list.json",
@@ -163,3 +161,44 @@ writejson(
     "manhwa-genres-list.json",
     hdpo.get_manhwa_genres_list(),
 )
+
+
+def create_notifications():
+    msg = "In Search Of The Lost Cities Of Antarctica"
+    hdpo.comment(215742, msg)
+
+    c_id = 0
+    for i in hdpo.get_comments(215742):
+        c = i["comments"]
+        assert c[0]["content"] == msg
+        c_id = c[0]["id"]
+        break
+
+    msg2 = "Black Dragons Soar Above The Mountain Of Shadows"
+    hdpo.comment(
+        215742,
+        msg2,
+        parent=c_id,
+    )
+
+    c2_id = 0
+    for i in hdpo.get_comments(215742):
+        c = i["comments"]
+        assert c[0]["id"] == c_id
+
+        ch = c[0]["children"]
+        assert ch[0]["content"] == msg2
+        c2_id = ch[0]["id"]
+        break
+
+    for i in hdpo.get_notifications():
+        writejson("notifications.json", i)
+        break
+
+    hdpo.notifications_clean()
+
+    hdpo.comment_delete(c2_id)
+    hdpo.comment_delete(c_id)
+
+
+create_notifications()
