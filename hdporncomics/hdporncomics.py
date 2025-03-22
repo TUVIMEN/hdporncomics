@@ -10,6 +10,7 @@ import re
 import json
 import base64
 from datetime import datetime
+from typing import Optional, Tuple, Generator, Callable
 
 from reliq import reliq
 
@@ -25,21 +26,21 @@ class AuthorizationError(Exception):
     pass
 
 
-def strtomd5(string):
+def strtomd5(string: str | bytes) -> str:
     if isinstance(string, str):
         string = string.encode()
 
     return hashlib.md5(string).hexdigest()
 
 
-def int_get(obj, name, otherwise=0):
+def int_get(obj: dict, name: str, otherwise: int = 0) -> Optional[int]:
     x = obj.get(name)
     if x is None:
         return otherwise
     return int(x)
 
 
-def float_get(obj, name, otherwise=0):
+def float_get(obj: dict, name: str, otherwise: int = 0) -> Optional[float]:
     x = obj.get(name)
     if x is None:
         return otherwise
@@ -71,7 +72,7 @@ class Session(requests.Session):
         self.logger = kwargs.get("logger")
 
     @staticmethod
-    def base(rq, url):
+    def base(rq: reliq, url: str) -> str:
         ref = url
         u = rq.search(r'[0] head; [0] base href=>[1:] | "%(href)v"')
         if u != "":
@@ -80,7 +81,7 @@ class Session(requests.Session):
                 ref = u
         return ref
 
-    def r_req_try(self, url, method, retry=False, **kwargs):
+    def r_req_try(self, url: str, method: str, retry: bool = False, **kwargs):
         if not retry:
             if self.wait != 0:
                 time.sleep(self.wait)
@@ -99,7 +100,7 @@ class Session(requests.Session):
         elif method == "put":
             return self.put(url, timeout=self.timeout, **kwargs)
 
-    def r_req(self, url, method="get", **kwargs):
+    def r_req(self, url: str, method: str = "get", **kwargs):
         tries = self.retries
         retry_wait = self.retry_wait
 
@@ -137,7 +138,9 @@ class Session(requests.Session):
             else:
                 return resp
 
-    def get_html(self, url, return_cookies=False, **kwargs):
+    def get_html(
+        self, url: str, return_cookies: bool = False, **kwargs
+    ) -> Tuple[reliq, str] | Tuple[reliq, str, dict]:
         resp = self.r_req(url, **kwargs)
 
         rq = reliq(resp.text)
@@ -147,24 +150,48 @@ class Session(requests.Session):
             return (rq, ref, resp.cookies.get_dict())
         return (rq, ref)
 
-    def get_json(self, url, **kwargs):
+    def get_json(self, url: str, **kwargs) -> dict:
         resp = self.r_req(url, **kwargs)
         return resp.json()
 
-    def post_json(self, url, **kwargs):
+    def post_json(self, url: str, **kwargs) -> dict:
         resp = self.r_req(url, method="post", **kwargs)
         return resp.json()
 
-    def delete_json(self, url, **kwargs):
+    def delete_json(self, url: str, **kwargs) -> dict:
         resp = self.r_req(url, method="delete", **kwargs)
         return resp.json()
 
-    def put_json(self, url, **kwargs):
+    def put_json(self, url: str, **kwargs) -> dict:
         resp = self.r_req(url, method="put", **kwargs)
         return resp.json()
 
 
 class hdporncomics:
+    """
+    kwarg( user_agent: str = "Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0" ) - user agent
+
+    kwarg( timeout: int = 30 ) - timeout
+
+    kwarg( retries: int = 3 ) - number of retries in case of non fatal failure
+
+    kwarg( retry_wait: float = 60 ) - waiting time before retrying
+
+    kwarg( wait: float = 0 ) - waiting time in seconds in between requests
+
+    kwarg( wait_random: int = 0 ) - random waiting time in milliseconds in between requests
+
+    kwarg( logger: Optional[TextIO] = None ) - file to which requests log will be written, e.g. sys.stderr or sys.stdout
+
+    fingerprint is generated at initialization so method( login ) is not needed unless you want to change it or log in.
+
+    Its recommended to set kwarg( wait ).
+
+    Any function requiring being logged in executed without it will raise hdporncomics.Authorization.
+
+    Any request error will raise hdporncomics.RequestError.
+    """
+
     def __init__(self, **kwargs):
         self.ses = Session(
             **kwargs,
@@ -175,7 +202,13 @@ class hdporncomics:
         self.fingerprint = self.get_fingerprint()
 
     @staticmethod
-    def get_comic_fname(url):
+    def get_comic_fname(url: str) -> str:
+        """
+        Makes file name based on arg( url )
+
+        returns( file name )
+        """
+
         url = re.sub(r"/$", "", url)
         url = re.sub(
             r"-(free-cartoon-porn-comic|sex-comic|gay-manga|manhwa-porn)$", "", url
@@ -184,28 +217,40 @@ class hdporncomics:
         return url
 
     @staticmethod
-    def comic_link_from_id(c_id):
+    def comic_link_from_id(c_id: int) -> str:
+        """
+        Creates url to comic from its id arg( c_id )
+
+        returns ( url to comic )
+        """
         return "https://hdporncomics.com/?p={}".format(str(c_id))
 
     @staticmethod
-    def comic_thumb(upload):
+    def comic_thumb(upload: str) -> str:
+        """
+        Converts url of image to its thumbnail version
+
+        returns( url to thumbnail )
+        """
         return upload.replace("/uploads/", "/thumbs/", count=1)
 
-    def view(self, c_id, add=True, _ret=False):
-        if _ret:
-            add = True
+    def _get_view(self, c_id: int) -> dict:
+        return self.ses.post_json(
+            "https://hdporncomics.com/api/v1/posts/{}/view?postStats=true".format(c_id),
+        )
+
+    def view(self, c_id: int, add: bool = True) -> bool | dict:
+        """
+        Views comic or deletes it from history by arg( c_id ) depending on arg( add ).
+        Comic can be deleted from history for logged in user.
+
+        returns( True for success )
+        """
         if add:
-            r = self.ses.post_json(
-                "https://hdporncomics.com/api/v1/posts/{}/view?postStats=true".format(
-                    c_id
-                ),
-            )
-            if _ret:
-                return r
-            else:
-                if r["message"] != "Post added to history successfully":
-                    return False
-                return True
+            r = self._get_view(c_id)
+            if r["message"] != "Post added to history successfully":
+                return False
+            return True
         else:
             self._logged()
 
@@ -216,7 +261,7 @@ class hdporncomics:
                 return False
             return True
 
-    def get_comic_likes(self, c_id, likes=True):
+    def get_comic_likes(self, c_id: int, likes: bool = True) -> dict:
         ret = {
             "likes": -1,
             "dlikes": -1,
@@ -227,16 +272,16 @@ class hdporncomics:
         if not likes:
             return ret
 
-        r = self.view(c_id, _ret=True)
-
-        ret["likes"] = r["post_likes"]
-        ret["dlikes"] = r["post_dislikes"]
-        ret["views"] = r["post_views"]
-        ret["favorites"] = r["post_favorites"]
+        r = self._get_view(c_id)
+        if isinstance(r, dict):
+            ret["likes"] = r["post_likes"]
+            ret["dlikes"] = r["post_dislikes"]
+            ret["views"] = r["post_views"]
+            ret["favorites"] = r["post_favorites"]
 
         return ret
 
-    def get_comments_clean(self, c):
+    def get_comments_clean(self, c: list[dict]) -> list[dict]:
         ret = []
         for i in c:
             ret.append(
@@ -256,7 +301,7 @@ class hdporncomics:
 
         return ret
 
-    def get_comments_get(self, url, page):
+    def get_comments_get(self, url: str, page: int) -> dict:
         r = self.ses.get_json(url)
 
         comments = self.get_comments_clean(r["data"])
@@ -264,7 +309,16 @@ class hdporncomics:
 
         return {"comments": comments, "page": page, "nexturl": nexturl}
 
-    def get_comments(self, c_id, page=1, top=False):
+    def get_comments(self, c_id: int, page: int = 1, top: bool = False) -> Generator:
+        """
+        Gets comments for comic by its id arg( c_id ), starting from arg( page ) page.
+
+        If arg( top ) is True they will be sorted by their score, otherwise sorted by date starting from the newest.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comments.json )
+        returns( Generator passing through pages of comments )
+        """
+
         sorttype = "likes" if top else "newest"
         url = (
             "https://hdporncomics.com/api/v1/posts/{}/comments?page={}&sort={}".format(
@@ -274,10 +328,49 @@ class hdporncomics:
 
         return self.go_through_pages(url, self.get_comments_get)
 
-    def get_comic_comments(self, c_id, comments):
+    def get_comic_comments_onpage_comment(self, rq: reliq, ref: str) -> dict:
+        children = []
+        for i in rq.filter(r"ul L@[1] .children; li child@").self():
+            children.append(self.get_comic_comments_onpage_comment(i, ref))
+
+        r = json.loads(
+            rq.search(
+                r"""
+            [0] * L@[1] #b>div-comment-; {
+                .id.u @ | "%(id)v" / sed "s/.*-//",
+                .avatar [0] img | "%(src)v",
+                .user [0] cite | "%Di" trim,
+                .posted [0] a c@[0] i@et>" ago" | "%i",
+                .content * .comment-text; p child@ | "%Di\n\n" / trim
+            }
+        """
+            )
+        )
+
+        # these are not delivered
+        r["likes"] = 0
+        r["userid"] = 0
+
+        r["children"] = children
+        r["avatar"] = urljoin(ref, r["avatar"])
+        r["posted"] = self.conv_relative_date(r["posted"])
+
+        return r
+
+    def get_comic_comments_onpage(self, rq: reliq, ref: str) -> list[dict]:
+        comments = []
+        for i in rq.filter(
+            r"div #form_comments; [0] ol .commentlist; li child@"
+        ).self():
+            comments.append(self.get_comic_comments_onpage_comment(i, ref))
+
+        return comments
+
+    def get_comic_comments(self, rq: reliq, ref: str, c_id: int, comments: int) -> dict:
         r = {"comments": [], "comments_pages": 0}
 
         if comments == 0:
+            r["comments"] = self.get_comic_comments_onpage(rq, ref)
             return r
 
         r_comments = []
@@ -295,7 +388,7 @@ class hdporncomics:
 
         return r
 
-    def get_comic_dates(self, rq):
+    def get_comic_dates(self, rq: reliq) -> dict:
         published = ""
         modified = ""
         for i in json.loads(rq.search('[0] script type=application/ld+json | "%i"'))[
@@ -308,7 +401,24 @@ class hdporncomics:
 
         return {"published": published, "modified": modified}
 
-    def get_comic(self, url, c_id=0, comments=0, likes=True):
+    def get_comic(
+        self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True
+    ) -> dict:
+        """
+        Gets comic based on arg( url ) or if arg( c_id ) is not 0 by the id.
+
+        If arg( likes ) is set to True, it will make additional request to get fields "likes", "dlikes", "favorites", "views", otherwise they will be set to 0. This requests adds comic to history and increases it's view count.
+
+        If arg( comments ) is set to 0 no additional requests for comments will be made and one page of comments will be scraped from html, although "likes" and "userid" fields will be set to 0 as they are not available.
+
+        if arg( comments ) is set to -1 all comments will be scraped, other numbers will limit number of scraped comment pages.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic2.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/gay-comic.json )
+        returns( Dictionary of comic metadata )
+        """
+
         if c_id != 0:
             url = self.comic_link_from_id(c_id)
         rq, ref = self.ses.get_html(url)
@@ -356,20 +466,32 @@ class hdporncomics:
 
         comic.update(self.get_comic_likes(c_id, likes))
 
-        comic.update(self.get_comic_comments(c_id, comments))
+        comic.update(self.get_comic_comments(rq, ref, c_id, comments))
 
         comic["cover"] = urljoin(ref, comic["cover"])
-        for i, j in enumerate(comic["images"]):
-            comic["images"][i] = urljoin(ref, j)
 
         for i in comic["related"]:
             for j in i["items"]:
                 j["cover"] = urljoin(ref, j["cover"])
                 j["link"] = urljoin(ref, j["link"])
 
+        for i, j in enumerate(comic["images"]):
+            comic["images"][i] = urljoin(ref, j)
+
         return comic
 
-    def get_manhwa_chapter(self, url, comments=0):
+    def get_manhwa_chapter(self, url: str, comments: int = 0) -> dict:
+        """
+        Gets manhwa chapter based on arg( url ).
+
+        arg( comments ) works the same way as for method( get_comic ).
+
+        When using method( get_comments ) the id used should be ['manhwa']['id'] as the comment section for chapters is the same as for the manhwa.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/manhwa-chapter.json )
+        returns( Dictionary of manhwa chapter metadata )
+        """
+
         rq, ref = self.ses.get_html(url)
 
         r = json.loads(
@@ -393,11 +515,23 @@ class hdporncomics:
 
         r.update(self.get_comic_dates(rq))
 
-        r.update(self.get_comic_comments(r["manhwa"]["id"], comments))
+        r.update(self.get_comic_comments(rq, ref, r["manhwa"]["id"], comments))
 
         return r
 
-    def get_manhwa(self, url, c_id=0, comments=0, likes=True):
+    def get_manhwa(
+        self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True
+    ) -> dict:
+        """
+        Gets manhwa based on arg( url ) or if arg( c_id ) is not 0 by the id.
+
+        arg( likes ) works the same way as for method( get_comic ).
+        arg( comments ) works the same way as for method( get_comic ).
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/manhwa.json )
+        returns( Dictionary of manhwa metadata )
+        """
+
         if c_id != 0:
             url = self.comic_link_from_id(c_id)
         rq, ref = self.ses.get_html(url)
@@ -440,7 +574,7 @@ class hdporncomics:
 
         manhwa.update(self.get_comic_likes(c_id, likes))
 
-        manhwa.update(self.get_comic_comments(c_id, comments))
+        manhwa.update(self.get_comic_comments(rq, ref, c_id, comments))
 
         manhwa["cover"] = urljoin(ref, manhwa["cover"])
 
@@ -452,12 +586,20 @@ class hdporncomics:
 
         return manhwa
 
-    def get_comic_file(self, url, c_id=0, commentpages=0, likes=True):
+    def get_comic_file(
+        self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True
+    ) -> Optional[str]:
+        """
+        Downloads comic into a file passing all arguments to method( get_comic ).
+
+        returns( file name or None if file already exists )
+        """
+
         fname = self.get_comic_fname(url)
         if os.path.exists(fname):
             return None
 
-        comic = self.get_comic(url, c_id=c_id, commentpages=commentpages, likes=likes)
+        comic = self.get_comic(url, c_id=c_id, comments=comments, likes=likes)
 
         with open(fname, "w") as f:
             f.write(json.dumps(comic))
@@ -465,7 +607,7 @@ class hdporncomics:
         return fname
 
     @staticmethod
-    def conv_relative_date(date):
+    def conv_relative_date(date: str) -> str:
         datetime.now()
         i = 0
         datel = len(date)
@@ -482,7 +624,7 @@ class hdporncomics:
         if date[-1] == "s":
             date = date[:-1]
 
-        mult = 0
+        mult: float = 0
         match date[i:]:
             case "second":
                 mult = 1
@@ -506,14 +648,14 @@ class hdporncomics:
         ).isoformat()
 
     @staticmethod
-    def conv_chapter_datetime(date):
+    def conv_chapter_datetime(date: str) -> str:
         if len(date) == 0:
             return date
 
         return datetime.strptime(date, "%b %d, %y").isoformat()
 
     @staticmethod
-    def get_pages_posts_views(views):
+    def get_pages_posts_views(views: str) -> int:
         viewsl = len(views)
         if viewsl == 0:
             return 0
@@ -538,7 +680,7 @@ class hdporncomics:
         assert viewsl == i
         return int(n)
 
-    def get_pages_posts(self, rq, ref):
+    def get_pages_posts(self, rq: reliq, ref: str) -> list[dict]:
         posts = json.loads(
             rq.search(
                 r"""
@@ -588,7 +730,7 @@ class hdporncomics:
 
         return posts
 
-    def get_page(self, url, page=1):
+    def get_page(self, url: str, page: int = 1) -> dict:
         rq, ref = self.ses.get_html(url)
 
         nexturl = rq.search(r'[0] * .nav-links; [0] a .next | "%(href)Dv" trim')
@@ -614,10 +756,9 @@ class hdporncomics:
             "posts": self.get_pages_posts(rq, ref),
         }
 
-    def go_through_pages(self, url, func):
+    def go_through_pages(self, url: str, func: Callable) -> Generator:
         nexturl = url
         page = 1
-        pages = []
         while True:
             paged = func(nexturl, page)
             nexturl = paged["nexturl"]
@@ -628,28 +769,65 @@ class hdporncomics:
                 break
             page += 1
 
-        return pages
+    def get_pages(self, url: str) -> Generator:
+        """
+        Gets pages of comics, gay comics or manhwa by arg( url )
 
-    def get_pages(self, url):
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-page.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/gay-comic-page.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/manhwa-page.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/artist-page.json )
+        returns( Generator passing through pages of comics )
+        """
+
         return self.go_through_pages(url, self.get_page)
 
-    def get_new(self):
+    def get_new(self) -> Generator:
+        """
+        Gets comics starting from the newest from url( https://hdporncomics.com/ ).
+
+        returns( initialized method( get_pages ) )
+        """
+
         return self.get_pages("https://hdporncomics.com/")
 
-    def get_gay(self):
+    def get_gay(self) -> Generator:
+        """
+        Gets gay comics starting from the newest from url( https://hdporncomics.com/gay-manga/ ).
+
+        returns( initialized method( get_pages ) )
+        """
+
         return self.get_pages("https://hdporncomics.com/gay-manga/")
 
-    def get_manhwas(self):
+    def get_manhwas(self) -> Generator:
+        """
+        Gets manhwas starting from the newest from url( https://hdporncomics.com/manhwa/ ).
+
+        returns( initialized method( get_pages ) )
+        """
+
         return self.get_pages("https://hdporncomics.com/manhwa/")
 
-    def get_comic_series(self):
+    def get_comic_series(self) -> Generator:
+        """
+        Gets series of comics starting from the newest from url( https://hdporncomics.com/comic-series/ ).
+
+        returns( initialized method( get_pages ) )
+        """
+
         return self.get_pages("https://hdporncomics.com/comic-series/")
 
     @staticmethod
     def get_fingerprint():
         return strtomd5(str(random.randint(0, 10**20)))
 
-    def login(self, email="", password=""):
+    def login(self, email: str = "", password: str = "") -> bool:
+        """
+        Logs user in, if email or password is empty just changes the fingerprint.
+
+        returns( False in case of failure )
+        """
         self.logout()
         self.fingerprint = self.get_fingerprint()
         if len(email) == 0 or len(password) == "":
@@ -680,21 +858,36 @@ class hdporncomics:
         self.ses.cookies.set("hd_JWT", jwt, domain="hdporncomics.com")
         return True
 
-    def logout(self):
+    def logout(self) -> bool:
+        """
+        Logs user out, is run automatically when using method( login ).
+
+        returns( False in case of failure )
+        """
+
         self.fingerprint = ""
         self.jwt = ""
         self.userinfo = {}
 
+        suc = True
         try:
             self.ses.headers.pop("Authorization")
         except:
-            pass
+            suc = False
         try:
             self.ses.cookies.pop("hd_JWT")
         except:
-            pass
+            suc = False
+        return suc
 
-    def like(self, c_id, like=True):
+    def like(self, c_id: int, like: bool = True) -> bool:
+        """
+        Upvotes or downvotes comic by arg( c_id ) depending on arg( like ).
+        Once voted you cannot unvote, only switch between upvote and downvote.
+
+        returns( True for success )
+        """
+
         ld = "voteUp" if like else "voteDown"
 
         r = self.ses.post_json(
@@ -702,10 +895,18 @@ class hdporncomics:
             data={"vote_type": ld, "user_fingerprint": self.fingerprint},
         )
 
-        if r["message"] == "Success":
-            return True
+        if r["message"] != "Success":
+            return False
+        return True
 
-    def comment_like(self, co_id, like=True):
+    def comment_like(self, co_id: int, like: bool = True) -> bool:
+        """
+        Likes or removes like from comment with id arg( co_id ) depending on arg( like ).
+        User has to be logged in.
+
+        returns( True for success )
+        """
+
         self._logged()
         url = "https://hdporncomics.com/api/v1/comments/{}/like".format(co_id)
 
@@ -720,7 +921,13 @@ class hdporncomics:
 
         return True
 
-    def comment_delete(self, co_id):
+    def comment_delete(self, co_id: int) -> bool:
+        """
+        Deletes comment by its id arg( co_id ).
+        User has to be logged in.
+
+        returns( True for success )
+        """
         self._logged()
         r = self.ses.delete_json(
             "https://hdporncomics.com/api/v1/user/comments/{}".format(co_id)
@@ -733,7 +940,14 @@ class hdporncomics:
         if len(self.jwt) == 0:
             raise AuthorizationError()
 
-    def favorite(self, c_id, add=True):
+    def favorite(self, c_id: int, add: bool = True) -> bool:
+        """
+        Adds comic by arg( c_id ) to favorites or removes depending on arg( add ).
+        Comic can be removed only for logged in user.
+
+        returns( True for success )
+        """
+
         url = "https://hdporncomics.com/api/v1/posts/{}/favorite".format(c_id)
         if add:
             r = self.ses.post_json(url, data={})
@@ -747,11 +961,19 @@ class hdporncomics:
                 return False
             return True
 
-    def report(self, c_id):
+    def report(self, c_id: int):
         # There is no reporting implemented on the site, any attempts to do so send no requests
         pass
 
-    def comment(self, c_id, text, parent=0):
+    def comment(self, c_id: int, text: str, parent: int = 0) -> bool:
+        """
+        Posts a comment on comic with id arg( c_id ) and contents of arg( text ).
+
+        if arg( parent ) is set to id of other comment the posted comment will be a response.
+
+        returns( True for success )
+        """
+
         r = self.ses.post_json(
             "https://hdporncomics.com/api/v1/posts/{}/comments".format(c_id),
             data={"comment_body": text, "comment_parrent": parent},
@@ -760,7 +982,15 @@ class hdporncomics:
             return True
         return False
 
-    def comment_edit(self, co_id, text):
+    def comment_edit(self, co_id: int, text: str) -> bool:
+        """
+        Theoretically edits comment with id arg( co_it ) to arg( text ).
+        Unfortunately this puts the comic into verification mode, and until some admin approves of the change it will become visible.
+        It's better to treat it as another method( comment_delete ) that draws attention to mods :)
+
+        returns( True for success )
+        """
+
         self._logged()
 
         r = self.ses.put_json(
@@ -771,7 +1001,13 @@ class hdporncomics:
             return False
         return True
 
-    def get_stats(self):
+    def get_stats(self) -> dict:
+        """
+        Gets stats of the site found on url( https://hdporncomics.com/stats/ ).
+
+        returns( Dictionary of site stats )
+        """
+
         rq, ref = self.ses.get_html("https://hdporncomics.com/stats/")
 
         return json.loads(
@@ -805,7 +1041,7 @@ class hdporncomics:
             )
         )
 
-    def get_gay_or_manhwa_list(self, url):
+    def get_gay_or_manhwa_list(self, url: str) -> dict:
         rq, ref = self.ses.get_html(url)
 
         return json.loads(
@@ -823,32 +1059,81 @@ class hdporncomics:
             )
         )
 
-    def get_manhwa_artists_list(self):
+    def get_manhwa_artists_list(self) -> dict:
+        """
+        Gets a list of manhwa artists from url( https://hdporncomics.com/manhwa-artists/ )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/manhwa-artists-list.json )
+        returns( List of manhwa artists )
+        """
+
         return self.get_gay_or_manhwa_list("https://hdporncomics.com/manhwa-artists/")
 
-    def get_manhwa_authors_list(self):
+    def get_manhwa_authors_list(self) -> dict:
+        """
+        Gets a list of manhwa authors from url( https://hdporncomics.com/manhwa-authors/ )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/manhwa-authors-list.json )
+        returns( List of manhwa authors )
+        """
+
         return self.get_gay_or_manhwa_list("https://hdporncomics.com/manhwa-authors/")
 
-    def get_manhwa_genres_list(self):
+    def get_manhwa_genres_list(self) -> dict:
+        """
+        Gets a list of manhwa genres from url( https://hdporncomics.com/manhwa-genres/ )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/manhwa-genres-list.json )
+        returns( List of manhwa genres )
+        """
+
         return self.get_gay_or_manhwa_list("https://hdporncomics.com/manhwa-genres/")
 
-    def get_gay_genres_list(self):
+    def get_gay_genres_list(self) -> dict:
+        """
+        Gets a list of gay comic genres from url( https://hdporncomics.com/gay-manga-genres/ )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/gay-comic-genres-list.json )
+        returns( List of gay comic genres )
+        """
+
         return self.get_gay_or_manhwa_list("https://hdporncomics.com/gay-manga-genres/")
 
-    def get_gay_groups_list(self):
+    def get_gay_groups_list(self) -> dict:
+        """
+        Gets a list of gay comic groups from url( https://hdporncomics.com/gay-manga-groups/ )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/gay-comic-groups-list.json )
+        returns( List of gay comic groups )
+        """
+
         return self.get_gay_or_manhwa_list("https://hdporncomics.com/gay-manga-groups/")
 
-    def get_gay_languages_list(self):
+    def get_gay_languages_list(self) -> dict:
+        """
+        Gets a list of gay comic languages from url( https://hdporncomics.com/gay-manga-languages/ )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/gay-comic-languages-list.json )
+        returns( List of gay comic languages )
+        """
+
         return self.get_gay_or_manhwa_list(
             "https://hdporncomics.com/gay-manga-languages/"
         )
 
-    def get_gay_sections_list(self):
+    def get_gay_sections_list(self) -> dict:
+        """
+        Gets a list of gay comic sections from url( https://hdporncomics.com/gay-manga-section/ )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/gay-comic-sections-list.json )
+        returns( List of gay comic sections )
+        """
+
         return self.get_gay_or_manhwa_list(
             "https://hdporncomics.com/gay-manga-section/"
         )
 
-    def get_list_page_posts(self, rq, ref):
+    def get_list_page_posts(self, rq: reliq, ref: str) -> list[dict]:
         r = json.loads(
             rq.search(
                 r"""
@@ -872,7 +1157,7 @@ class hdporncomics:
 
         return r
 
-    def get_list_page(self, url, page=1):
+    def get_list_page(self, url: str, page: int = 1) -> dict:
         rq, ref = self.ses.get_html(url)
 
         nexturl = rq.search(r'[0] * #navigation; [0] a .next | "%(href)Dv" trim')
@@ -887,7 +1172,7 @@ class hdporncomics:
         else:
             lastpage = int(lastpage)
 
-        page = {
+        ret = {
             "url": url,
             "nexturl": nexturl,
             "page": page,
@@ -895,17 +1180,36 @@ class hdporncomics:
             "posts": self.get_list_page_posts(rq, ref),
         }
 
-        return page
+        return ret
 
-    def get_comics_list_url(self, url):
+    def get_comics_list_url(self, url: str) -> Generator:
+        """
+        Gets list of comic terms from arg( url ).
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-artists-list.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-groups-list.json )
+        returns( Generator passing through pages of comic terms )
+        """
+
         return self.go_through_pages(url, self.get_list_page)
 
-    def get_comics_list(self, ctype, page=1, sort="", search=""):
+    def get_comics_list(
+        self, ctype: str, page: int = 1, sort: str = "", search: str = ""
+    ) -> Generator:
         """
-        for some reason covers are generated depending on the url, and stay the same for them
+        Initiates method( get_comics_list_url ).
 
-        sort = "likes" "views" "favorites" "count"
-        ctype = "parodies" "artists" "groups" "categories" "tags" "characters"
+        arg( ctype ) indicates the type of term, it can take value of "parodies", "artists", "groups", "categories", "tags", "characters".
+
+        arg( sort ) sets sorting algorithm it can take value of "likes", "views", "favorites", "count".
+
+        arg( page ) specifies starting page.
+
+        arg( search ) filters the titles of terms.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-artists-list.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-groups-list.json )
+        returns( Generator passing through pages of comic terms )
         """
 
         possible_sort = ["likes", "views", "favorites", "count"]
@@ -943,9 +1247,17 @@ class hdporncomics:
 
         return self.get_comics_list_url(url)
 
-    def get_terms(self, ctype):
+    def get_terms(self, ctype: str) -> list:
         """
-        ctype = "artist" "parody" "tags" "groups" "characters" "category"
+        Gets a list of all terms based on arg( ctype ).
+
+        arg( ctype ) can take values of "artist", "parody", "tags", "groups", "characters", "category".
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/terms-artist.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/terms-characters.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/terms-tags.json )
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/terms-comments.json )
+        returns( List of terms )
         """
 
         possible_ctype = [
@@ -980,7 +1292,15 @@ class hdporncomics:
 
         return ret
 
-    def subscribe(self, term_id, add=True):
+    def subscribe(self, term_id: int, add: bool = True) -> bool:
+        """
+        Subscribes or unsubscribes to arg( term_id ) depending on arg( add ). Works only for logged in user.
+
+        Id of terms can be found by either method( get_terms ) or method( get_pages ) on specific term page.
+
+        returns( True for success )
+        """
+
         self._logged()
 
         url = "https://hdporncomics.com/api/v1/term/{}/subscribe".format(term_id)
@@ -995,7 +1315,14 @@ class hdporncomics:
                 return False
             return True
 
-    def get_dashboard_stats(self):
+    def get_dashboard_stats(self) -> dict:
+        """
+        Gets dashboard stats of logged in user.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/dashboard-stats.json )
+        returns( Dictionary of dashboard stats )
+        """
+
         self._logged()
 
         r = self.ses.get_json("https://hdporncomics.com/api/v1/dashboard/")
@@ -1007,7 +1334,7 @@ class hdporncomics:
             "comments": r["total_comments"],
         }
 
-    def get_history_page(self, url, page=1):
+    def get_history_page(self, url: str, page: int = 1) -> dict:
         r = self.ses.get_json(url)
 
         posts = []
@@ -1043,28 +1370,56 @@ class hdporncomics:
             "posts": posts,
         }
 
-    def get_history(self):
+    def get_history(self) -> Generator:
+        """
+        Gets a list of viewed comics of logged in user.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/history.json )
+        returns( Generator passing through pages of viewed comics )
+        """
+
         self._logged()
         return self.go_through_pages(
             "https://hdporncomics.com/api/v1/user/history?page=1",
             self.get_history_page,
         )
 
-    def get_liked(self):
+    def get_liked(self) -> Generator:
+        """
+        Gets a list of liked comics of logged in user.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/liked.json )
+        returns( Generator passing through pages of liked comics )
+        """
+
         self._logged()
         return self.go_through_pages(
             "https://hdporncomics.com/api/v1/user/likes?page=1",
             self.get_history_page,
         )
 
-    def get_favorites(self):
+    def get_favorites(self) -> Generator:
+        """
+        Gets a list of favored comics of logged in user.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/favorites.json )
+        returns( Generator passing through pages of favored comics )
+        """
+
         self._logged()
         return self.go_through_pages(
             "https://hdporncomics.com/api/v1/user/favorites?page=1",
             self.get_history_page,
         )
 
-    def get_subscriptions(self):
+    def get_subscriptions(self) -> list[dict]:
+        """
+        Gets a list of subscribed terms made by logged in user.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/subscriptions.json )
+        returns( List of subscribed terms )
+        """
+
         self._logged()
         r = self.ses.get_json(
             "https://hdporncomics.com/api/v1/user/subscriptions?page=1"
@@ -1083,7 +1438,7 @@ class hdporncomics:
 
         return terms
 
-    def get_user_comments_page(self, url, page=1):
+    def get_user_comments_page(self, url: str, page: int = 1) -> dict:
         r = self.ses.get_json(url)
 
         posts = []
@@ -1112,14 +1467,21 @@ class hdporncomics:
             "posts": posts,
         }
 
-    def get_user_comments(self):
+    def get_user_comments(self) -> Generator:
+        """
+        Gets a list of comments made by logged in user.
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/user-comments.json )
+        returns( Generator passing through pages of comments )
+        """
+
         self._logged()
         return self.go_through_pages(
             "https://hdporncomics.com/api/v1/user/comments/?page=1",
             self.get_user_comments_page,
         )
 
-    def get_notifications_page(self, url, page=1):
+    def get_notifications_page(self, url: str, page: int = 1) -> dict:
         r = self.ses.get_json(url)
 
         nexturl = None
@@ -1146,20 +1508,43 @@ class hdporncomics:
             "notifications": notifications,
         }
 
-    def get_notifications(self):
+    def get_notifications(self) -> Generator:
+        """
+        Gets notifications for logged in user
+
+        It doesn't remove them, for that use method( notifications_clean )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/notifications.json )
+
+        returns( Generator passing through notification pages )
+        """
+
         self._logged()
         return self.go_through_pages(
             "https://hdporncomics.com/api/v1/user/notifications?page=1",
             self.get_notifications_page,
         )
 
-    def notifications_clean(self):
+    def notifications_clean(self) -> bool:
+        """
+        Cleans all notifications for logged in user
+
+        returns( True for success )
+        """
+
         r = self.ses.delete_json("https://hdporncomics.com/api/v1/user/notifications")
         if r["message"] != "All notifications deleted successfully":
             return False
         return True
 
-    def get_user(self, url):
+    def get_user(self, url: str) -> dict:
+        """
+        Gets basic info about user from arg( url )
+
+        exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/user.json )
+        returns( Dictionary of user metadata )
+        """
+
         rq, ref = self.ses.get_html(url)
 
         ret = json.loads(
@@ -1178,7 +1563,13 @@ class hdporncomics:
         ret["url"] = url
         return ret
 
-    def search(self, search):
+    def search(self, search: str) -> Generator:
+        """
+        Searches for arg( search ) in titles of comics
+
+        returns( initialized method( get_pages ) )
+        """
+
         url = (
             "https://hdporncomics.com/?s={}&s_extra[]=title&s_extra[]=taxonomy".format(
                 search
@@ -1186,7 +1577,13 @@ class hdporncomics:
         )
         return self.get_pages(url)
 
-    def guess(self, url):
+    def guess(self, url: str) -> Optional[Callable]:
+        """
+        Guesses scraping method based on the arg( url )
+
+        returns( the found method or None if nothing matched )
+        """
+
         r = re.match(r"^(https?://hdporncomics.com)(/.*|$)", url)
         if r is None:
             return None
