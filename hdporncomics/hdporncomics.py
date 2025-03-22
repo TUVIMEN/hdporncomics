@@ -1597,28 +1597,30 @@ class hdporncomics:
             )
 
         matches = [
+            (r"/stats/", self.get_stats),
+            (r"/author/[^/]+/?", self.get_user),
+            (pagep("/trending"), None),
+            (pagep(r"/(comic-series|gay-manga|manhwa)"), self.get_pages),
+            (pagep(r"/comic-series/[^/]+"), self.get_pages),
+            (pagep(r"/(artist|tag|category|p-group|pcharacter)/[^/]+"), self.get_pages),
+            (pagep(r"/(genre|section|group|language)/[^/]+"), self.get_pages),
+            (pagep(r"/manhwa-(artist|author|genre)/[^/]+"), self.get_pages),
             (
                 r"/?p=\d+",
                 self.get_comic,
             ),
             (
-                r"/(free-cartoon-porn-comic|sex-comic|gay-manga)/[^/]+/?",
+                r"/(free-cartoon-porn-comic|sex-comic|gay-manga)/[^/]+(/(#.*)?)?",
                 self.get_comic,
             ),
             (
-                r"/manhwa-porn/[^/]+/?",
+                r"/manhwa(-porn)?/[^/]+(/(#.*)?)?",
                 self.get_manhwa,
             ),
             (
-                r"/manhwa-porn/[^/]+/[^/]+/?",
-                self.get_manhwa,
+                r"/manhwa(-porn)?/[^/]+//?[^/]+(/(#.*)?)?",
+                self.get_manhwa_chapter,
             ),
-            (r"/stats/", self.get_stats),
-            (r"/author/[^/]+/?", self.get_user),
-            (pagep(r"/(comic-series|gay-manga|manhwa)"), self.get_pages),
-            (pagep(r"/(artist|tag|category|p-group|pcharacter)/[^/]+"), self.get_pages),
-            (pagep(r"/(genre|section|group|language)/[^/]+"), self.get_pages),
-            (pagep(r"/manhwa-(artist|author|genre)/[^/]+"), self.get_pages),
             (
                 r"/manhwa-(artists|authors|genres)(/(#.*)?)?",
                 self.get_gay_or_manhwa_list,
@@ -1637,6 +1639,7 @@ class hdporncomics:
                 ),
                 self.get_pages,
             ),
+            (r"/[^/]+(/(#.*)?)?", self.get_comic),
             (pagep(r""), self.get_pages),
         ]
 
