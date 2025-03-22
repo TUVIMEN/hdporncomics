@@ -123,7 +123,7 @@ def check_comment(c):
         ("user", isstr),
         ("userid", inrange),
         ("avatar", opturlvalid),
-        ("content", isstr),
+        ("content", isstr, 0),
         ("likes", inrange),
         ("posted", isisodate),
         ("children", islist, check_comment),
