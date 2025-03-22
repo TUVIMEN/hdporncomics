@@ -90,7 +90,7 @@ writejson(
 
 writegen("history.json", hdpo.get_history())
 
-writegen("likes.json", hdpo.get_liked())
+writegen("liked.json", hdpo.get_liked())
 
 writegen("favorites.json", hdpo.get_favorites())
 
@@ -145,6 +145,11 @@ writejson(
 writejson(
     "gay-comic-languages-list.json",
     hdpo.get_gay_languages_list(),
+)
+
+writejson(
+    "gay-comic-sections-list.json",
+    hdpo.get_gay_sections_list(),
 )
 
 writejson(
