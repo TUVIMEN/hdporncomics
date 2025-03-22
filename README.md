@@ -1,6 +1,6 @@
 # hdporncomics
 
-An unofficial api for hdporncomics.
+An unofficial api for [hdporncomics](https://hdporncomics.com/).
 
 # Installation
 
