@@ -211,7 +211,7 @@ class hdporncomics:
 
         url = re.sub(r"/$", "", url)
         url = re.sub(
-            r"-(free-cartoon-porn-comic|sex-comic|gay-manga|manhwa-porn)$", "", url
+            r"-(free(-cartoon)?-porn-comic|sex-comic|gay-manga|manhwa-porn)$", "", url
         )
         url = re.sub(r".*/", "", url)
         return url
@@ -428,7 +428,7 @@ class hdporncomics:
                 r"""
             .cover * #imgBox; [0] img | "%(src)v",
             div #infoBox; {
-                .title h1 child@ | "%Di" trim / sed "s/ (free Cartoon Porn Comic|Comic Porn|comic porn|– Gay Manga)$//" "E",
+                .title h1 child@ | "%Di" trim / sed "s/ ((free )?(Cartoon )?Porn Comics?|Sex Comics?|Comic Porn|comic porn|(– ?)?Gay (Manga|Yaoi))$//" "E",
                 .tags.a [0] span i@t>"Tags :"; [0] * ssub@; a c@[0] | "%i\n" / decode,
                 .artists.a [0] span i@t>"Artist :"; [0] * ssub@; a c@[0] | "%i\n" / decode,
                 .categories.a [0] span i@t>"Category :"; [0] * ssub@; a c@[0] | "%i\n" / decode,
@@ -668,7 +668,7 @@ class hdporncomics:
         n = float(views[:i])
 
         if i < viewsl:
-            c = views[i]
+            c = views[i].lower()
             if c == "k":
                 n *= 1000
             elif c == "m":
@@ -1610,15 +1610,19 @@ class hdporncomics:
                 self.get_comic,
             ),
             (
-                r"/(free-cartoon-porn-comic|sex-comic|gay-manga)/[^/]+(/(#.*)?)?",
+                r"/gay-manga/[^/]+(/(#.*)?)?",
                 self.get_comic,
             ),
             (
-                r"/manhwa(-porn)?/[^/]+(/(#.*)?)?",
+                r"/manhwa/[^/]+(/(#.*)?)?",
                 self.get_manhwa,
             ),
             (
-                r"/manhwa(-porn)?/[^/]+//?[^/]+(/(#.*)?)?",
+                r"/[^/]+(-free)?(((-cartoon)?-porn|-sex)-comic(s*|-2)|-comic-porn|-gay-manga)(/(#.*)?)?",
+                self.get_comic,
+            ),
+            (
+                r"/manhwa/[^/]+//?[^/]+(/(#.*)?)?",
                 self.get_manhwa_chapter,
             ),
             (
@@ -1639,8 +1643,8 @@ class hdporncomics:
                 ),
                 self.get_pages,
             ),
-            (r"/[^/]+(/(#.*)?)?", self.get_comic),
             (pagep(r""), self.get_pages),
+            (r"/[^/]+(/(#.*)?)?", self.get_comic),
         ]
 
         for i in matches:
