@@ -12,7 +12,118 @@ Are created by `create-format-examples` script and contained in [examples](https
 
 # Usage
 
-## Code
+## CLI
+
+THIS THING DOWNLOADS IMAGES!!!!!!!!!!!
+
+[demonstration video](cli-usage-demonstration.mkv)
+
+CLI interface uses very little of implemented functions and is used only for downloading comics/manhwas/chapters and pages of them.
+
+Download resource from URLs into DIR
+
+    hdporncomics --directory DIR URL1 URL2 URL3
+
+This will create separate directory named by title of resource where images and data will be stored e.g. for `https://hdporncomics.com/myaxx-human-experiments-planz34-sex-comic/` it will create
+
+```
+Myaxx Human Experiments
+Myaxx Human Experiments/1.jpg
+Myaxx Human Experiments/2.jpg
+Myaxx Human Experiments/3.jpg
+Myaxx Human Experiments/4.jpg
+Myaxx Human Experiments/5.jpg
+Myaxx Human Experiments/6.jpg
+Myaxx Human Experiments/7.jpg
+Myaxx Human Experiments/8.jpg
+Myaxx Human Experiments/info.json
+```
+
+where `info.json` stores the basic information. By default comments are not scraped if you want to get all comments for all resources use `--comment-limit -1` option.
+
+Getting manhwas will create chapters directories under the directory of manhwa.
+
+Pages of things don't create directories for themselves but they still create `info.json` although in different format.
+
+By default images are named by their order and stylized with zeroes - this is much more practical approach as it won't mess up order of them by sorting files. If you want to have the original names use the `--no-num-images` option.
+
+Download only images without metadata using 8 threads (only images are downloaded using multiple threads)
+
+    hdporncomics --directory DIR --threads 8 --images-only URL1 URL2 URL3
+
+Download comics with all comments and wait 1.2 seconds in between requests and randomly up to 800 milliseconds (waiting time doesn't affect downloading images)
+
+    hdporncomics --directory DIR --wait 1.2 --wait-random 800 URL1 URL2
+
+Download resources from URLs annotating their type
+
+    hdporncomics --directory DIR --chapter URL1 --chapter URL2 --pages URL3 --comic URL4 --manhwa URL5 URL6 URL7
+
+### General
+
+`--help` - print help message
+
+`--version` - print version
+
+`--threads NUM`  - amount of threads used to download images
+
+### Files
+
+`--directory DIR` - enter directory before downloading
+
+`--force` - overwrite things
+
+`--no-num-images` - use original names of saved images
+
+### Types
+
+`--chapter URL` - treat the following url as manhwa chapter
+
+`--manhwa URL` - treat the following url as manhwa
+
+`--comic URL` - treat the following url as comic
+
+`--pages URL` - treat the following url as pages
+
+### Settings
+
+`--images-only` - download only images, don't save any metadata
+
+`--noimages` - save only metadata
+
+`--nochapters` - don't download chapters when downloading manhwas
+
+`--comment-limit NUM` - limit of number of comment pages traversed, `-1` disables this limit, by default set to `0`
+
+`--pages-max NUM` - limit of pages traversed when getting pages
+
+### Request settings
+
+`--wait FLOAT` - waiting time in seconds
+
+`--wait-random MILISECONDS` - random waiting time up to `MILISECONDS`
+
+`--retries NUM` - number of retries for failed requests
+
+`--retry-wait FLOAT` - waiting time in seconds between retries
+
+`--timeout SECONDS` - connection timeout
+
+`--insecure` - disable ssl checks
+
+`--location` - follow redirections
+
+`--user-agent UA` - set custom user agent
+
+`--proxies` - set requests proxies dictionary, e.g. -x \'{"http":"127.0.0.1:8080","ftp":"0.0.0.0"}\'
+
+`--header` - set header, can be used multiple times e.g. -H 'User: Admin' -H 'Pass: 12345'
+
+`--cookies` - set cookie, can be used multiple times e.g. -b 'auth=8f82ab' -b 'PHPSESSID=qw3r8an829'
+
+## Library
+
+### Code
 
 ```python
 import os
@@ -99,9 +210,9 @@ if func is not None:
     print(func(url))
 ```
 
-## Methods
+### Methods
 
-### hdporncomics
+#### hdporncomics
 
 kwarg( user_agent: str = "Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0" ) - user agent
 
@@ -125,25 +236,31 @@ Any function requiring being logged in executed without it will raise hdporncomi
 
 Any request error will raise hdporncomics.RequestError.
 
-### get_comic_fname(url: str) -> str
+#### get_comic_fname(url: str) -> str
 
 Makes file name based on arg( url )
 
 returns( file name )
 
-### comic_link_from_id(c_id: int) -> str
+#### comic_link_from_id(c_id: int) -> str
 
 Creates url to comic from its id arg( c_id )
 
 returns ( url to comic )
 
-### comic_thumb(upload: str) -> str
+#### image_to_thumb(upload: str) -> str
 
 Converts url of image to its thumbnail version
 
 returns( url to thumbnail )
 
-### view(self, c_id: int, add: bool = True) -> bool | dict
+#### image_to_upload(thumb: str) -> str
+
+Converts url of thumbnail to its upload version
+
+returns( url to upload )
+
+#### view(self, c_id: int, add: bool = True) -> bool | dict
 
 Views comic or deletes it from history by arg( c_id ) depending on arg( add ).
 
@@ -151,7 +268,7 @@ Comic can be deleted from history for logged in user.
 
 returns( True for success )
 
-### get_comments(self, c_id: int, page: int = 1, top: bool = False) -> Generator
+#### get_comments(self, c_id: int, page: int = 1, top: bool = False) -> Generator
 
 Gets comments for comic by its id arg( c_id ), starting from arg( page ) page.
 
@@ -161,7 +278,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Generator passing through pages of comments )
 
-### get_comic(self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True) -> dict
+#### get_comic(self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True) -> dict
 
 Gets comic based on arg( url ) or if arg( c_id ) is not 0 by the id.
 
@@ -179,7 +296,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Dictionary of comic metadata )
 
-### get_manhwa_chapter(self, url: str, comments: int = 0) -> dict
+#### get_manhwa_chapter(self, url: str, comments: int = 0) -> dict
 
 Gets manhwa chapter based on arg( url ).
 
@@ -191,7 +308,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Dictionary of manhwa chapter metadata )
 
-### get_manhwa(self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True) -> dict
+#### get_manhwa(self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True) -> dict
 
 Gets manhwa based on arg( url ) or if arg( c_id ) is not 0 by the id.
 
@@ -203,13 +320,13 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Dictionary of manhwa metadata )
 
-### get_comic_file(self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True) -> Optional[str]
+#### get_comic_file(self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True) -> Optional[str]
 
 Downloads comic into a file passing all arguments to method( get_comic ).
 
 returns( file name or None if file already exists )
 
-### get_pages(self, url: str) -> Generator
+#### get_pages(self, url: str) -> Generator
 
 Gets pages of comics, gay comics or manhwa by arg( url )
 
@@ -223,43 +340,43 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Generator passing through pages of comics )
 
-### get_new(self) -> Generator
+#### get_new(self) -> Generator
 
 Gets comics starting from the newest from url( https://hdporncomics.com/ ).
 
 returns( initialized method( get_pages ) )
 
-### get_gay(self) -> Generator
+#### get_gay(self) -> Generator
 
 Gets gay comics starting from the newest from url( https://hdporncomics.com/gay-manga/ ).
 
 returns( initialized method( get_pages ) )
 
-### get_manhwas(self) -> Generator
+#### get_manhwas(self) -> Generator
 
 Gets manhwas starting from the newest from url( https://hdporncomics.com/manhwa/ ).
 
 returns( initialized method( get_pages ) )
 
-### get_comic_series(self) -> Generator
+#### get_comic_series(self) -> Generator
 
 Gets series of comics starting from the newest from url( https://hdporncomics.com/comic-series/ ).
 
 returns( initialized method( get_pages ) )
 
-### login(self, email: str = "", password: str = "") -> bool
+#### login(self, email: str = "", password: str = "") -> bool
 
 Logs user in, if email or password is empty just changes the fingerprint.
 
 returns( False in case of failure )
 
-### logout(self) -> bool
+#### logout(self) -> bool
 
 Logs user out, is run automatically when using method( login ).
 
 returns( False in case of failure )
 
-### like(self, c_id: int, like: bool = True) -> bool
+#### like(self, c_id: int, like: bool = True) -> bool
 
 Upvotes or downvotes comic by arg( c_id ) depending on arg( like ).
 
@@ -267,7 +384,7 @@ Once voted you cannot unvote, only switch between upvote and downvote.
 
 returns( True for success )
 
-### comment_like(self, co_id: int, like: bool = True) -> bool
+#### comment_like(self, co_id: int, like: bool = True) -> bool
 
 Likes or removes like from comment with id arg( co_id ) depending on arg( like ).
 
@@ -275,21 +392,21 @@ User has to be logged in.
 
 returns( True for success )
 
-### comment_delete(self, co_id: int) -> bool
+#### comment_delete(self, co_id: int) -> bool
 
 Deletes comment by its id arg( co_id ).
 User has to be logged in.
 
 returns( True for success )
 
-### favorite(self, c_id: int, add: bool = True) -> bool
+#### favorite(self, c_id: int, add: bool = True) -> bool
 
 Adds comic by arg( c_id ) to favorites or removes depending on arg( add ).
 Comic can be removed only for logged in user.
 
 returns( True for success )
 
-### comment(self, c_id: int, text: str, parent: int = 0) -> bool
+#### comment(self, c_id: int, text: str, parent: int = 0) -> bool
 
 Posts a comment on comic with id arg( c_id ) and contents of arg( text ).
 
@@ -297,7 +414,7 @@ if arg( parent ) is set to id of other comment the posted comment will be a resp
 
 returns( True for success )
 
-### comment_edit(self, co_id: int, text: str) -> bool
+#### comment_edit(self, co_id: int, text: str) -> bool
 
 Theoretically edits comment with id arg( co_it ) to arg( text ).
 Unfortunately this puts the comic into verification mode, and until some admin approves of the change it will become visible.
@@ -305,13 +422,13 @@ It's better to treat it as another method( comment_delete ) that draws attention
 
 returns( True for success )
 
-### get_stats(self) -> dict
+#### get_stats(self) -> dict
 
 Gets stats of the site found on url( https://hdporncomics.com/stats/ ).
 
 returns( Dictionary of site stats )
 
-### get_manhwa_artists_list(self) -> dict
+#### get_manhwa_artists_list(self) -> dict
 
 Gets a list of manhwa artists from url( https://hdporncomics.com/manhwa-artists/ )
 
@@ -319,7 +436,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of manhwa artists )
 
-### get_manhwa_authors_list(self) -> dict
+#### get_manhwa_authors_list(self) -> dict
 
 Gets a list of manhwa authors from url( https://hdporncomics.com/manhwa-authors/ )
 
@@ -327,7 +444,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of manhwa authors )
 
-### get_manhwa_genres_list(self) -> dict
+#### get_manhwa_genres_list(self) -> dict
 
 Gets a list of manhwa genres from url( https://hdporncomics.com/manhwa-genres/ )
 
@@ -335,7 +452,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of manhwa genres )
 
-### get_gay_genres_list(self) -> dict
+#### get_gay_genres_list(self) -> dict
 
 Gets a list of gay comic genres from url( https://hdporncomics.com/gay-manga-genres/ )
 
@@ -343,7 +460,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of gay comic genres )
 
-### get_gay_groups_list(self) -> dict
+#### get_gay_groups_list(self) -> dict
 
 Gets a list of gay comic groups from url( https://hdporncomics.com/gay-manga-groups/ )
 
@@ -351,7 +468,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of gay comic groups )
 
-### get_gay_languages_list(self) -> dict
+#### get_gay_languages_list(self) -> dict
 
 Gets a list of gay comic languages from url( https://hdporncomics.com/gay-manga-languages/ )
 
@@ -359,7 +476,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of gay comic languages )
 
-### get_gay_sections_list(self) -> dict
+#### get_gay_sections_list(self) -> dict
 
 Gets a list of gay comic sections from url( https://hdporncomics.com/gay-manga-section/ )
 
@@ -367,7 +484,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of gay comic sections )
 
-### get_comics_list_url(self, url: str) -> Generator
+#### get_comics_list_url(self, url: str) -> Generator
 
 Gets list of comic terms from arg( url ).
 
@@ -379,7 +496,7 @@ returns( Generator passing through pages of comic terms )
 
 return self.go_through_pages(url, self.get_list_page)
 
-### get_comics_list(self, ctype: str, page: int = 1, sort: str = "", search: str = "") -> Generator
+#### get_comics_list(self, ctype: str, page: int = 1, sort: str = "", search: str = "") -> Generator
 
 Initiates method( get_comics_list_url ).
 
@@ -397,7 +514,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Generator passing through pages of comic terms )
 
-### get_terms(self, ctype: str) -> list
+#### get_terms(self, ctype: str) -> list
 
 Gets a list of all terms based on arg( ctype ).
 
@@ -413,7 +530,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of terms )
 
-### subscribe(self, term_id: int, add: bool = True) -> bool
+#### subscribe(self, term_id: int, add: bool = True) -> bool
 
 Subscribes or unsubscribes to arg( term_id ) depending on arg( add ). Works only for logged in user.
 
@@ -421,7 +538,7 @@ Id of terms can be found by either method( get_terms ) or method( get_pages ) on
 
 returns( True for success )
 
-### get_dashboard_stats(self) -> dict
+#### get_dashboard_stats(self) -> dict
 
 Gets dashboard stats of logged in user.
 
@@ -429,7 +546,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Dictionary of dashboard stats )
 
-### get_history(self) -> Generator
+#### get_history(self) -> Generator
 
 Gets a list of viewed comics of logged in user.
 
@@ -437,7 +554,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Generator passing through pages of viewed comics )
 
-### get_liked(self) -> Generator
+#### get_liked(self) -> Generator
 
 Gets a list of liked comics of logged in user.
 
@@ -445,7 +562,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Generator passing through pages of liked comics )
 
-### get_favorites(self) -> Generator
+#### get_favorites(self) -> Generator
 
 Gets a list of favored comics of logged in user.
 
@@ -453,7 +570,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Generator passing through pages of favored comics )
 
-### get_subscriptions(self) -> list[dict]
+#### get_subscriptions(self) -> list[dict]
 
 Gets a list of subscribed terms made by logged in user.
 
@@ -461,7 +578,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of subscribed terms )
 
-### get_user_comments(self) -> Generator
+#### get_user_comments(self) -> Generator
 
 Gets a list of comments made by logged in user.
 
@@ -469,7 +586,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Generator passing through pages of comments )
 
-### get_notifications(self) -> Generator
+#### get_notifications(self) -> Generator
 
 Gets notifications for logged in user
 
@@ -480,13 +597,13 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Generator passing through notification pages )
 
-### notifications_clean(self) -> bool
+#### notifications_clean(self) -> bool
 
 Cleans all notifications for logged in user
 
 returns( True for success )
 
-### get_user(self, url: str) -> dict
+#### get_user(self, url: str) -> dict
 
 Gets basic info about user from arg( url )
 
@@ -494,13 +611,13 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Dictionary of user metadata )
 
-### search(self, search: str) -> Generator
+#### search(self, search: str) -> Generator
 
 Searches for arg( search ) in titles of comics
 
 returns( initialized method( get_pages ) )
 
-### guess(self, url: str) -> Optional[Callable]
+#### guess(self, url: str) -> Optional[Callable]
 
 Guesses scraping method based on the arg( url )
 

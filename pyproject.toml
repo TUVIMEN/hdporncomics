@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hdporncomics"
-version = "0.0.3"
+version = "0.0.5"
 description = "A full api for hdporncomics"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -37,3 +37,9 @@ classifiers = [
 
 [project.urls]
 "Homepage" = "https://github.com/TUVIMEN/hdporncomics"
+
+[tool.setuptools]
+packages = ["hdporncomics"]
+
+[project.scripts]
+hdporncomics = "hdporncomics.__init__:main"
