@@ -33,25 +33,45 @@ def strtomd5(string: str | bytes) -> str:
     return hashlib.md5(string).hexdigest()
 
 
-def int_get(obj: dict, name: str, otherwise: int = 0) -> Optional[int]:
+def bool_get(obj: dict, name: str, otherwise: bool = False) -> bool:
+    x = obj.get(name)
+    if x is None:
+        return otherwise
+    return bool(x)
+
+
+def int_get(obj: dict, name: str, otherwise: int = 0) -> int:
     x = obj.get(name)
     if x is None:
         return otherwise
     return int(x)
 
 
-def float_get(obj: dict, name: str, otherwise: int = 0) -> Optional[float]:
+def float_get(obj: dict, name: str, otherwise: float = 0) -> float:
     x = obj.get(name)
     if x is None:
         return otherwise
     return float(x)
 
 
+def dict_get(obj: dict, name: str) -> dict:
+    x = obj.get(name)
+    if not isinstance(x, dict):
+        return {}
+    return x
+
+
 class Session(requests.Session):
     def __init__(self, **kwargs):
         super().__init__()
 
+        self.proxies.update(dict_get(kwargs, "proxies"))
+        self.headers.update(dict_get(kwargs, "headers"))
+        self.cookies.update(dict_get(kwargs, "cookies"))
+
         self.timeout = int_get(kwargs, "timeout", 30)
+        self.verify = bool_get(kwargs, "verify", False)
+        self.allow_redirects = bool_get(kwargs, "allow_redirects", False)
 
         t = kwargs.get("user_agent")
         self.user_agent = (
@@ -226,13 +246,50 @@ class hdporncomics:
         return "https://hdporncomics.com/?p={}".format(str(c_id))
 
     @staticmethod
-    def comic_thumb(upload: str) -> str:
+    def image_to_thumb(upload: str) -> str:
         """
         Converts url of image to its thumbnail version
 
         returns( url to thumbnail )
         """
-        return upload.replace("/uploads/", "/thumbs/", count=1)
+
+        if upload.find("://pics.hdpo"):
+            return upload
+
+        if upload.find("://m.hdpo") != -1:
+            return upload.replace("/images/", "/thumbs/", count=1)
+
+        if upload.find("/images/") == -1:
+            return upload.replace("/uploads/", "/thumbs/", count=1)
+
+        return re.sub(r"(/\d+)(\.[a-zA-Z0-9]+)$", r"\1_t\2", upload)
+
+    @staticmethod
+    def image_to_upload(thumb: str) -> str:
+        """
+        Converts url of thumbnail to its upload version
+
+        returns( url to upload )
+        """
+
+        # images with subdomain `pics.` all have the `_th` suffix and vice versa.
+        # As seen below it's impossible to convert inbetween them so they should be ignored. They take only 0.652% of images.
+
+        # https://hdporncomics.com/y3df-who-did-it-3-free-cartoon-porn-comic/
+
+        # https://pics.hdporncomics.com/bigImages/y3df-Your3DFantasy_com-Comics/Who-Did-It/Issue-3/y3df-Your3DFantasy_com-Comics-Who-Did-It-Issue-3-003.jpg
+        # https://pics.hdporncomics.com/thumbs/Your3DFantasy_com-Comics-Who-Did-It-Issue-3-003_th.jpg
+
+        if thumb.find("://pics.hdpo"):
+            return thumb
+
+        if thumb.find("://m.hdpo") != -1:
+            return thumb.replace("/thumbs/", "/images/", count=1)
+
+        if thumb.find("/images/") == -1:
+            return thumb.replace("/thumbs/", "/uploads/", count=1)
+
+        return re.sub(r"(/\d+)_t(\.[a-zA-Z0-9]+)$", r"\1\2", thumb)
 
     def _get_view(self, c_id: int) -> dict:
         return self.ses.post_json(
@@ -341,7 +398,7 @@ class hdporncomics:
                 .avatar [0] img | "%(src)v",
                 .user [0] cite | "%Di" trim,
                 .posted [0] a c@[0] i@et>" ago" | "%i",
-                .content * .comment-text; p child@ | "%Di\n\n" / trim
+                .content * .comment-text; p child@ | "%Di\n\n" / trim sed "s/ *<br \/> */\n/g"
             }
         """
             )
@@ -442,7 +499,7 @@ class hdporncomics:
             .published [0] meta property="article:published_time" content | "%(content)v",
             .modified [0] meta property="article:modified_time" content | "%(content)v",
             .id.u [0] link rel=shortlink href | "%(href)v" / sed "s#.*=##",
-            .images.a div .my-gallery; img | "%(src)v\n",
+            .images.a div .my-gallery; figure child@; a itemprop=contentUrl child@ | "%(href)v\n",
             .related * #related-comics; article child@; {
                 .name [0] h2 child@; [0] * c@[0] i@>[1:] | "%Di" trim sed "s/ *: *$//",
                 .items * .slider-item; a [0]; {
@@ -475,8 +532,9 @@ class hdporncomics:
                 j["cover"] = urljoin(ref, j["cover"])
                 j["link"] = urljoin(ref, j["link"])
 
-        for i, j in enumerate(comic["images"]):
-            comic["images"][i] = urljoin(ref, j)
+        images = comic["images"]
+        for i, j in enumerate(images):
+            images[i] = urljoin(ref, j)
 
         return comic
 
@@ -516,6 +574,10 @@ class hdporncomics:
         r.update(self.get_comic_dates(rq))
 
         r.update(self.get_comic_comments(rq, ref, r["manhwa"]["id"], comments))
+
+        images = r["images"]
+        for i, j in enumerate(images):
+            images[i] = urljoin(ref, j)
 
         return r
 
@@ -1584,7 +1646,7 @@ class hdporncomics:
         returns( the found method or None if nothing matched )
         """
 
-        r = re.match(r"^(https?://hdporncomics.com)(/.*|$)", url)
+        r = re.match(r"^(https?://hdporncomics.com)(\?.*|/.*|$)", url)
         if r is None:
             return None
 
