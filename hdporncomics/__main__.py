@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# by Dominik Stanisław Suchora <suchora.dominik7@gmail.com>
+# License: GNU GPLv3
+
 import sys
 from hdporncomics import main
 

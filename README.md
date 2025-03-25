@@ -16,7 +16,7 @@ Are created by `create-format-examples` script and contained in [examples](https
 
 THIS THING DOWNLOADS IMAGES!!!!!!!!!!!
 
-[demonstration video](cli-usage-demonstration.mkv)
+[demonstration video](https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/cli-usage-demonstration.mkv)
 
 CLI interface uses very little of implemented functions and is used only for downloading comics/manhwas/chapters and pages of them.
 
