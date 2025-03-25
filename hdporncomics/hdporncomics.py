@@ -70,7 +70,7 @@ class Session(requests.Session):
         self.cookies.update(dict_get(kwargs, "cookies"))
 
         self.timeout = int_get(kwargs, "timeout", 30)
-        self.verify = bool_get(kwargs, "verify", False)
+        self.verify = bool_get(kwargs, "verify", True)
         self.allow_redirects = bool_get(kwargs, "allow_redirects", False)
 
         t = kwargs.get("user_agent")

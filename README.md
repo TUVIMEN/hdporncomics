@@ -216,7 +216,17 @@ if func is not None:
 
 kwarg( user_agent: str = "Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0" ) - user agent
 
+kwarg( proxies: dict ) - requests lib proxies
+
+kwarg( headers: dict ) - requests lib headers
+
+kwarg( cookies: dict ) - requests lib cookies
+
 kwarg( timeout: int = 30 ) - timeout
+
+kwarg( verify: bool = True ) - use ssl
+
+kwarg( allow_redirects: bool = False ) - allow for redirections
 
 kwarg( retries: int = 3 ) - number of retries in case of non fatal failure
 
