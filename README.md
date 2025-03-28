@@ -632,3 +632,44 @@ returns( initialized method( get_pages ) )
 Guesses scraping method based on the arg( url )
 
 returns( the found method or None if nothing matched )
+
+## Scraping whole site
+
+At the root of this project is a python tool named `hdporncomics-scrape`. It utilizes this library to scrape the whole site. It does so in a sophisticated way, going through all list pages until saved links don't start overlapping or until the views of already found resources are greater by the factor of 1.3 from the saved ones.
+
+All gathered links are saved into `links` file. All resources are saved into their respective directory that can be `manhwachapter`, `comic`, `gay` or `manhwa`. All files under these are named by sha256 of their url.
+
+All comments of resources are downloaded, exception to this are manhwa chapters since their comment section is the same as their parent manhwa.
+
+After downloading all of these resources and their comment sections there is nothing on site that cannot be generated from these, so scraping things like artists, tags, genres is counter productive, if you need them generate them.
+
+If this tool is run after some time it will update file structure with new resources and resources that got a lot of activity since.
+
+This tool takes only one argument which is the working directory
+
+    ./hdporncomics-scrape DIR
+
+By default the waiting time is 1 second before each request, at this speed it takes about a week to finish everything. You may go faster, to change the waiting time go to the end of `hdporncomics-scrape` file and change the waiting argument of `hdporncomics` class.
+
+As per 2025-03-28 file structure generated consists of:
+
+| path         | size | file count   |
+| ----         | ---- | ----------   |
+| ./w          | 1.6G | 203645       |
+| ./w/links    | 16M  | 203639 lines |
+| ./w/comic    | 773M | 74323        |
+| ./w/gay      | 476M | 38960        |
+| ./w/manhwa   | 17M  | 1629         |
+| ./w/chapters | 308M | 88727        |
+
+Above that the count of images is 7579740
+
+    find comic gay manhwachapter -type f | xargs -x -n 50 jq -r '.images | length' | awk '{ c += $0 } END { print c }'
+
+and the count of comments is 587164
+
+    find comic gay manhwa -type f | xargs -x -n 50 jq 'def tchild: . | map((.children | tchild) + 1) | add; .comments | tchild'  | awk '{ c += $0 } END { print c }'
+
+If your script got interrupted in the middle of scraping, there is a chance that chapter links were not saved to `links` file, you can correct that by running
+
+    { find manhwa -type f | xargs jq -r '.chapters[].link'; cat links; } | sort -u | sponge links
