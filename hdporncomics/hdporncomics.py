@@ -393,7 +393,7 @@ class hdporncomics:
         r = json.loads(
             rq.search(
                 r"""
-            [0] * L@[1] #b>div-comment-; {
+            [0] * l@[1] #b>div-comment-; {
                 .id.u @ | "%(id)v" / sed "s/.*-//",
                 .avatar [0] img | "%(src)v",
                 .user [0] cite | "%Di" trim,
@@ -670,7 +670,6 @@ class hdporncomics:
 
     @staticmethod
     def conv_relative_date(date: str) -> str:
-        datetime.now()
         i = 0
         datel = len(date)
         while i < datel and date[i].isdigit():
