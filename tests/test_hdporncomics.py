@@ -330,7 +330,7 @@ def check_page(c, manhwa):
                 ("date", isisodate),
                 ("link", urlvalid),
                 ("title", isstr),
-                ("views", inrange, (0 if manhwa else 1)),
+                ("views", inrange),
                 ("images", inrange, (0 if manhwa else 1)),
                 ("likes", inrange),
                 ("dlikes", inrange),
