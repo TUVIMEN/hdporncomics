@@ -11,7 +11,7 @@ requires-python = ">=3.8"
 license = {text = "GPLv3"}
 keywords = ["text-processing", "scraper", "api", "hdporncomics"]
 authors = [
-  {name = "Dominik Stanisław Suchora", email = "suchora.dominik7@gmail.com" }
+  {name = "Dominik Stanisław Suchora", email = "hexderm@gmail.com" }
 ]
 
 dependencies = ['requests','reliq']
