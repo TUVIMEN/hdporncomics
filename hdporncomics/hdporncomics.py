@@ -12,10 +12,10 @@ import base64
 from datetime import datetime
 from typing import Optional, Tuple, Generator, Callable
 
-from reliq import reliq
-
+from reliq import RQ
 import requests
-from urllib.parse import urljoin
+
+reliq = RQ(cached="True")
 
 
 class RequestError(Exception):
@@ -91,16 +91,6 @@ class Session(requests.Session):
 
         self.logger = kwargs.get("logger")
 
-    @staticmethod
-    def base(rq: reliq, url: str) -> str:
-        ref = url
-        u = rq.search(r'[0] head; [0] base href=>[1:] | "%(href)v"')
-        if u != "":
-            u = urljoin(url, u)
-            if u != "":
-                ref = u
-        return ref
-
     def r_req_try(self, url: str, method: str, retry: bool = False, **kwargs):
         if not retry:
             if self.wait != 0:
@@ -163,8 +153,8 @@ class Session(requests.Session):
     ) -> Tuple[reliq, str] | Tuple[reliq, str, dict]:
         resp = self.r_req(url, **kwargs)
 
-        rq = reliq(resp.text)
-        ref = self.base(rq, url)
+        rq = reliq(resp.text, ref=url)
+        ref = rq.ref
 
         if return_cookies:
             return (rq, ref, resp.cookies.get_dict())
@@ -390,18 +380,16 @@ class hdporncomics:
         for i in rq.filter(r"ul L@[1] .children; li child@").self():
             children.append(self.get_comic_comments_onpage_comment(i, ref))
 
-        r = json.loads(
-            rq.search(
-                r"""
+        r = rq.json(
+            r"""
             [0] * l@[1] #b>div-comment-; {
                 .id.u @ | "%(id)v" / sed "s/.*-//",
-                .avatar [0] img | "%(src)v",
+                .avatar.U [0] img | "%(src)v",
                 .user [0] cite | "%Di" trim,
                 .posted [0] a c@[0] i@et>" ago" | "%i",
                 .content * .comment-text; p child@ | "%Di\n\n" / trim sed "s/ *<br \/> */\n/g"
             }
-        """
-            )
+            """
         )
 
         # these are not delivered
@@ -409,7 +397,6 @@ class hdporncomics:
         r["userid"] = 0
 
         r["children"] = children
-        r["avatar"] = urljoin(ref, r["avatar"])
         r["posted"] = self.conv_relative_date(r["posted"])
 
         return r
@@ -448,9 +435,7 @@ class hdporncomics:
     def get_comic_dates(self, rq: reliq) -> dict:
         published = ""
         modified = ""
-        for i in json.loads(rq.search('[0] script type=application/ld+json | "%i"'))[
-            "@graph"
-        ]:
+        for i in rq.json('[0] script type=application/ld+json | "%i"')["@graph"]:
             if i["@type"] == "WebPage":
                 published = i["datePublished"]
                 modified = i["dateModified"]
@@ -480,10 +465,9 @@ class hdporncomics:
             url = self.comic_link_from_id(c_id)
         rq, ref = self.ses.get_html(url)
 
-        comic = json.loads(
-            rq.search(
-                r"""
-            .cover * #imgBox; [0] img | "%(src)v",
+        comic = rq.json(
+            r"""
+            .cover.U * #imgBox; [0] img | "%(src)v",
             div #infoBox; {
                 .title h1 child@ | "%Di" trim / sed "s/ ((free )?(Cartoon )?Porn Comics?|Sex Comics?|Comic Porn|comic porn|(– ?)?Gay (Manga|Yaoi))$//" "E",
                 .tags.a [0] span i@t>"Tags :"; [0] * ssub@; a c@[0] | "%i\n" / decode,
@@ -499,20 +483,19 @@ class hdporncomics:
             .published [0] meta property="article:published_time" content | "%(content)v",
             .modified [0] meta property="article:modified_time" content | "%(content)v",
             .id.u [0] link rel=shortlink href | "%(href)v" / sed "s#.*=##",
-            .images.a div .my-gallery; figure child@; a itemprop=contentUrl child@ | "%(href)v\n",
+            .images.a.U div .my-gallery; figure child@; a itemprop=contentUrl child@ | "%(href)v\n",
             .related * #related-comics; article child@; {
                 .name [0] h2 child@; [0] * c@[0] i@>[1:] | "%Di" trim sed "s/ *: *$//",
                 .items * .slider-item; a [0]; {
                     [0] img; {
-                        .cover @ | "%(src)v",
+                        .cover.U @ | "%(src)v",
                         .title @ | "%(alt)Dv" trim / sed "s/^(Porn Comics|Gay Manga) - //; s/ – Gay Manga$//" "E",
                     },
-                    .link @ | "%(href)v"
+                    .link.U @ | "%(href)v"
                 } |
             } | ,
             .comments_count.u [0] * #comments-title | "%i" / sed "s/ .*//; s/^One$/1/"
-        """
-            )
+            """
         )
 
         if len(comic["published"]) == 0 or len(comic["modified"]) == 0:
@@ -524,17 +507,6 @@ class hdporncomics:
         comic.update(self.get_comic_likes(c_id, likes))
 
         comic.update(self.get_comic_comments(rq, ref, c_id, comments))
-
-        comic["cover"] = urljoin(ref, comic["cover"])
-
-        for i in comic["related"]:
-            for j in i["items"]:
-                j["cover"] = urljoin(ref, j["cover"])
-                j["link"] = urljoin(ref, j["link"])
-
-        images = comic["images"]
-        for i, j in enumerate(images):
-            images[i] = urljoin(ref, j)
 
         return comic
 
@@ -552,9 +524,8 @@ class hdporncomics:
 
         rq, ref = self.ses.get_html(url)
 
-        r = json.loads(
-            rq.search(
-                r"""
+        r = rq.json(
+            r"""
             .id.u [0] div #E>post-[0-9]+ | "%(id)v",
             .title div #selectChapter; [0] option selected | "%Di" trim,
             .manhwa {
@@ -564,20 +535,15 @@ class hdporncomics:
                     .title @ | "%DT"
                 }
             },
-            .images.a div #imageContainer; img | "%(src)v\n",
+            .images.a.U div #imageContainer; img | "%(src)v\n",
             .comments_count.u [0] * #comments-title | "%i" / sed "s/ .*//; s/^One$/1/",
-        """
-            )
+            """
         )
         r["url"] = url
 
         r.update(self.get_comic_dates(rq))
 
         r.update(self.get_comic_comments(rq, ref, r["manhwa"]["id"], comments))
-
-        images = r["images"]
-        for i, j in enumerate(images):
-            images[i] = urljoin(ref, j)
 
         return r
 
@@ -598,10 +564,9 @@ class hdporncomics:
             url = self.comic_link_from_id(c_id)
         rq, ref = self.ses.get_html(url)
 
-        manhwa = json.loads(
-            rq.search(
-                r"""
-            .cover * #imgBox; [0] img | "%(src)v",
+        manhwa = rq.json(
+            r"""
+            .cover.U * #imgBox; [0] img | "%(src)v",
             div #infoBox; {
                 .title h1 child@ | "%Di" trim / sed "s/ ( Manhwa Porn )$//",
                 .artists.a [0] span i@t>"Artist :"; [0] * ssub@; a c@[0] | "%i\n" / decode,
@@ -616,13 +581,12 @@ class hdporncomics:
             .summary [0] div #summary | "%DT" trim "\n",
             .chapters div #eachChapter; {
                 [0] a; {
-                    .link @ | "%(href)v",
+                    .link.U @ | "%(href)v", -- they might have '//' inside them but they are the same as in the browser
                     .name @ | "%DT"
                 },
                 .date [0] span | "%T" trim "\n"
             } |
-        """
-            )
+            """
         )
 
         manhwa["url"] = url
@@ -638,12 +602,7 @@ class hdporncomics:
 
         manhwa.update(self.get_comic_comments(rq, ref, c_id, comments))
 
-        manhwa["cover"] = urljoin(ref, manhwa["cover"])
-
         for i in manhwa["chapters"]:
-            i["link"] = urljoin(
-                ref, i["link"]
-            )  # they might have '//' inside them but they are the same as in the browser
             i["date"] = self.conv_chapter_datetime(i["date"])
 
         return manhwa
@@ -742,18 +701,17 @@ class hdporncomics:
         return int(n)
 
     def get_pages_posts(self, rq: reliq, ref: str) -> list[dict]:
-        posts = json.loads(
-            rq.search(
-                r"""
+        posts = rq.json(
+            r"""
             .posts div #all-posts; div #B>post-[0-9]* -has@"[0] ins .adsbyexoclick" child@; {
                 .id.u @ | "%(id)v",
                 div .comic-image child@; {
-                    .cover [0] img | "%(src)v",
+                    .cover.U [0] img | "%(src)v",
                     .date [0] span .text-base c@[0] | "%Di"
                 },
                 div .text-white child@; {
                     [0] a child@; {
-                        .link @ | "%(href)v",
+                        .link.U @ | "%(href)v",
                         .title [0] * c@[0] i@>[1:] | "%Di" sed "s/ (comic porn|free Cartoon Porn Comic)$//" "E"
                     },
                     .views [0] span c@[0] i@et>" Views" | "%i" sed "s/ .*//",
@@ -768,7 +726,7 @@ class hdporncomics:
                             a -rel
                         }; {
                            [0] a; {
-                                .link @ | "%(href)v",
+                                .link.U @ | "%(href)v",
                                 .title [0] * c@[0] i@>[1:] | "%Di" trim
                             },
                            .date [0] span c@[0] child@ | "%i"
@@ -777,16 +735,13 @@ class hdporncomics:
                 }
             } |
         """
-            )
         )["posts"]
+
         for i in posts:
             i["views"] = self.get_pages_posts_views(i["views"])
             i["date"] = self.conv_relative_date(i["date"])
-            i["cover"] = urljoin(ref, i["cover"])
-            i["link"] = urljoin(ref, i["link"])
 
             for j in i["chapters"]:
-                j["link"] = urljoin(ref, j["link"])
                 j["date"] = self.conv_chapter_datetime(j["date"])
 
         return posts
@@ -794,19 +749,15 @@ class hdporncomics:
     def get_page(self, url: str, page: int = 1) -> dict:
         rq, ref = self.ses.get_html(url)
 
-        nexturl = rq.search(r'[0] * .nav-links; [0] a .next | "%(href)Dv" trim')
-        if len(nexturl) != 0:
-            nexturl = urljoin(ref, nexturl)
+        nexturl = rq.json(r'.u.U [0] * .nav-links; [0] a .next | "%(href)Dv" trim')["u"]
 
-        lastpage = rq.search(
-            r'[0] * .nav-links; [-] a c@[0] .page-numbers i@Et>^[0-9,]+$ | "%i" tr ","'
-        )
-        lastpage = 0 if len(lastpage) == 0 else int(lastpage)
+        lastpage = rq.json(
+            r'.l.u [0] * .nav-links; [-] a c@[0] .page-numbers i@Et>^[0-9,]+$ | "%i" tr ","'
+        )["l"]
 
-        term_id = rq.search(
-            r'[0] * #subscribe-box | "%(data-taxid)v" / sed "/^$/s/^/0/"'
-        )
-        term_id = 0 if len(term_id) == 0 else int(term_id)
+        term_id = rq.json(
+            r'.l.u [0] * #subscribe-box | "%(data-taxid)v" / sed "/^$/s/^/0/"'
+        )["l"]
 
         return {
             "url": url,
@@ -1071,43 +1022,40 @@ class hdporncomics:
 
         rq, ref = self.ses.get_html("https://hdporncomics.com/stats/")
 
-        return json.loads(
-            rq.search(
-                r"""
-        [0] div .post-content; {
-            .comics.u dt i@ft>"Porn Comics"; [0] * ssub@; dd self@ | "%i",
-            .gay.u dt i@ft>"Gay Manga"; [0] * ssub@; dd self@ | "%i",
-            .manhwa.u dt i@ft>"Manhwa"; [0] * ssub@; dd self@ | "%i",
+        return rq.json(
+            r"""
+            [0] div .post-content; {
+                .comics.u dt i@ft>"Porn Comics"; [0] * ssub@; dd self@ | "%i",
+                .gay.u dt i@ft>"Gay Manga"; [0] * ssub@; dd self@ | "%i",
+                .manhwa.u dt i@ft>"Manhwa"; [0] * ssub@; dd self@ | "%i",
 
-            .artists.u dt i@ft>"Artists"; [0] * ssub@; dd self@ | "%i",
-            .categories.u dt i@ft>"Categories"; [0] * ssub@; dd self@ | "%i",
-            .characters.u dt i@ft>"Characters"; [0] * ssub@; dd self@ | "%i",
-            .groups.u dt i@ft>"Groups"; [0] * ssub@; dd self@ | "%i",
-            .parodies.u dt i@ft>"Parodies"; [0] * ssub@; dd self@ | "%i",
-            .tags.u dt i@ft>"Tags"; [0] * ssub@; dd self@ | "%i",
+                .artists.u dt i@ft>"Artists"; [0] * ssub@; dd self@ | "%i",
+                .categories.u dt i@ft>"Categories"; [0] * ssub@; dd self@ | "%i",
+                .characters.u dt i@ft>"Characters"; [0] * ssub@; dd self@ | "%i",
+                .groups.u dt i@ft>"Groups"; [0] * ssub@; dd self@ | "%i",
+                .parodies.u dt i@ft>"Parodies"; [0] * ssub@; dd self@ | "%i",
+                .tags.u dt i@ft>"Tags"; [0] * ssub@; dd self@ | "%i",
 
-            .comments.u dt i@ft>"Comments"; [0] * ssub@; dd self@ | "%i",
-            .users.u dt i@ft>"Users"; [0] * ssub@; dd self@ | "%i",
-            .moderators.u dt i@ft>"Moderators"; [0] * ssub@; dd self@ | "%i",
+                .comments.u dt i@ft>"Comments"; [0] * ssub@; dd self@ | "%i",
+                .users.u dt i@ft>"Users"; [0] * ssub@; dd self@ | "%i",
+                .moderators.u dt i@ft>"Moderators"; [0] * ssub@; dd self@ | "%i",
 
-            .most_active_users [0] h3 i@ft>"User With Most Comments"; [0] * ssub@; div .relative; {
-                .avatar [0] img | "%(src)v",
-                [0] a; {
-                    .link @ | "%(href)v",
-                    .user p | "%Di" trim
-                }
-            } |
-        }
-        """
-            )
+                .most_active_users [0] h3 i@ft>"User With Most Comments"; [0] * ssub@; div .relative; {
+                    .avatar [0] img | "%(src)v",
+                    [0] a; {
+                        .link @ | "%(href)v",
+                        .user p | "%Di" trim
+                    }
+                } |
+            }
+            """
         )
 
     def get_gay_or_manhwa_list(self, url: str) -> dict:
         rq, ref = self.ses.get_html(url)
 
-        return json.loads(
-            rq.search(
-                r"""
+        return rq.json(
+            r"""
             .id.u [0] * #E>post-[0-9]+ | "%(id)v",
             .list * #mcTagMap; ul .links; li -.morelink child@; {
                 [0] a; {
@@ -1116,8 +1064,7 @@ class hdporncomics:
                 },
                 .count.u span .mctagmap_count | "%i"
             } |
-        """
-            )
+            """
         )
 
     def get_manhwa_artists_list(self) -> dict:
@@ -1195,43 +1142,31 @@ class hdporncomics:
         )
 
     def get_list_page_posts(self, rq: reliq, ref: str) -> list[dict]:
-        r = json.loads(
-            rq.search(
-                r"""
+        return rq.json(
+            r"""
             .posts [0] section id; div .categoryCard child@; {
                 [0] a; {
-                    .cover [0] img | "%(src)v",
-                    .link @ | "%(href)v"
+                    .cover.U [0] img | "%(src)v",
+                    .link.U @ | "%(href)v"
                 },
                 [0] h3; text@ [0] *; {
                     .name @ / sed "s/ ( [0-9]* )$//" decode trim,
                     .count.u @ / sed "s/.*(//; s/).*//; s/ //g"
                 }
             } |
-        """
-            )
+            """
         )["posts"]
-
-        for i in r:
-            i["link"] = urljoin(ref, i["link"])
-            i["cover"] = urljoin(ref, i["cover"])
-
-        return r
 
     def get_list_page(self, url: str, page: int = 1) -> dict:
         rq, ref = self.ses.get_html(url)
 
-        nexturl = rq.search(r'[0] * #navigation; [0] a .next | "%(href)Dv" trim')
-        if len(nexturl) != 0:
-            nexturl = urljoin(ref, nexturl)
+        nexturl = rq.json(r'.u.U [0] * #navigation; [0] a .next | "%(href)Dv" trim')[
+            "u"
+        ]
 
-        lastpage = rq.search(
-            r'[0] * #navigation; [-] a c@[0] .page-numbers i@Et>^[0-9]+$ | "%i"'
-        )
-        if len(lastpage) == 0:
-            lastpage = 0
-        else:
-            lastpage = int(lastpage)
+        lastpage = rq.json(
+            r'.l.u [0] * #navigation; [-] a c@[0] .page-numbers i@Et>^[0-9]+$ | "%i"'
+        )["l"]
 
         ret = {
             "url": url,
@@ -1608,16 +1543,14 @@ class hdporncomics:
 
         rq, ref = self.ses.get_html(url)
 
-        ret = json.loads(
-            rq.search(
-                r"""
+        ret = rq.json(
+            r"""
             .id.u [0] link rel=alternate href=Ee>"/v2/users/[0-9]+" | "%(href)v" / sed "s#.*/##",
             .name div #userName; [-] span | "%Dt" trim,
             .joined dt i@t>Joined; [0] * ssub@; dd self@ | "%i",
             .lastseen dt i@t>"Last Seen"; [0] * ssub@; dd self@ | "%i",
             .comments.u dt i@t>Comments; [0] * ssub@; dd self@ | "%i"
-        """
-            )
+            """
         )
         ret["lastseen"] = self.conv_relative_date(ret["lastseen"])
         ret["joined"] = self.conv_relative_date(ret["joined"])
