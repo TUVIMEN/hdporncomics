@@ -244,14 +244,6 @@ def pages(path: Path, hdpo: hdporncomics, url: str, settings: dict):
         write_info(path, posts, settings["force"])
 
 
-def logger(args):
-    if len(args) != 3:
-        assert 0
-
-    sys.stdout.write(args[1])
-    sys.stdout.write("\n")
-
-
 def cli(argv: list[str]):
     args = argparser().parse_args(argv)
 
@@ -269,7 +261,7 @@ def cli(argv: list[str]):
         "pages_max": args.pages_max,
     }
 
-    hdpo = hdporncomics(logger=logger)
+    hdpo = hdporncomics(logger=treerequests.simple_logger(sys.stdout))
     treerequests.args_session(hdpo.ses, args)
     path = Path(".")
 
