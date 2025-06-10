@@ -9,7 +9,9 @@ import json
 from typing import Callable, Optional
 from concurrent.futures import ThreadPoolExecutor
 
-from .hdporncomics import hdporncomics, RequestError, AuthorizationError
+import treerequests
+
+from .hdporncomics import hdporncomics
 from .args import argparser
 
 
@@ -90,7 +92,6 @@ def image_writable(path: Path, force: bool) -> bool:
 
 
 def get_image(path: Path, hdpo: hdporncomics, url: str):
-    print(url)
     r = hdpo.ses.get(url).content
     with open(path, "wb") as f:
         f.write(r)
@@ -243,28 +244,16 @@ def pages(path: Path, hdpo: hdporncomics, url: str, settings: dict):
         write_info(path, posts, settings["force"])
 
 
+def logger(args):
+    if len(args) != 3:
+        assert 0
+
+    sys.stdout.write(args[1])
+    sys.stdout.write("\n")
+
+
 def cli(argv: list[str]):
     args = argparser().parse_args(argv)
-
-    headers = {}
-    cookies = {}
-    if args.cookie is not None:
-        for i in args.cookie:
-            cookies.update(i)
-
-    if args.header is not None:
-        for i in args.header:
-            headers.update(i)
-        cookie = headers.get("Cookie")
-        if cookie is not None:
-            headers.pop("Cookie")
-            for i in cookie.split(";"):
-                pair = i.split("=")
-                name = pair[0].strip()
-                val = None
-                if len(pair) > 1:
-                    val = pair[1].strip()
-                cookies.update({name: val})
 
     if args.images_only and args.noimages:
         raise Exception("Nothing to do")
@@ -280,22 +269,8 @@ def cli(argv: list[str]):
         "pages_max": args.pages_max,
     }
 
-    net_settings = {
-        "logger": sys.stdout,
-        "wait": args.wait,
-        "wait_random": args.wait_random,
-        "retries": args.retries,
-        "retry_wait": args.retry_wait,
-        "timeout": args.timeout,
-        "location": args.location,
-        "user_agent": args.user_agent,
-        "verify": args.insecure,
-        "proxies": args.proxies,
-        "headers": headers,
-        "cookies": cookies,
-    }
-
-    hdpo = hdporncomics(**net_settings)
+    hdpo = hdporncomics(logger=logger)
+    treerequests.args_session(hdpo.ses, args)
     path = Path(".")
 
     for url in args.urls:

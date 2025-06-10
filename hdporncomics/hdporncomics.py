@@ -12,6 +12,7 @@ import base64
 from datetime import datetime
 from typing import Optional, Tuple, Generator, Callable
 
+import treerequests
 from reliq import RQ
 import requests
 
@@ -61,122 +62,6 @@ def dict_get(obj: dict, name: str) -> dict:
     return x
 
 
-class Session(requests.Session):
-    def __init__(self, **kwargs):
-        super().__init__()
-
-        self.proxies.update(dict_get(kwargs, "proxies"))
-        self.headers.update(dict_get(kwargs, "headers"))
-        self.cookies.update(dict_get(kwargs, "cookies"))
-
-        self.timeout = int_get(kwargs, "timeout", 30)
-        self.verify = bool_get(kwargs, "verify", True)
-        self.allow_redirects = bool_get(kwargs, "allow_redirects", False)
-
-        t = kwargs.get("user_agent")
-        self.user_agent = (
-            t
-            if t is not None
-            else "Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0"
-        )
-
-        self.headers.update(
-            {"User-Agent": self.user_agent, "Referer": "https://hdporncomics.com/"}
-        )
-
-        self.retries = int_get(kwargs, "retries", 3)
-        self.retry_wait = float_get(kwargs, "retry_wait", 60)
-        self.wait = float_get(kwargs, "wait")
-        self.wait_random = int_get(kwargs, "wait_random")
-
-        self.logger = kwargs.get("logger")
-
-    def r_req_try(self, url: str, method: str, retry: bool = False, **kwargs):
-        if not retry:
-            if self.wait != 0:
-                time.sleep(self.wait)
-            if self.wait_random != 0:
-                time.sleep(random.randint(0, self.wait_random + 1) / 1000)
-
-        if self.logger is not None:
-            print(url, file=self.logger)
-
-        if method == "get":
-            return self.get(url, timeout=self.timeout, **kwargs)
-        elif method == "post":
-            return self.post(url, timeout=self.timeout, **kwargs)
-        elif method == "delete":
-            return self.delete(url, timeout=self.timeout, **kwargs)
-        elif method == "put":
-            return self.put(url, timeout=self.timeout, **kwargs)
-
-    def r_req(self, url: str, method: str = "get", **kwargs):
-        tries = self.retries
-        retry_wait = self.retry_wait
-
-        instant_end_code = [400, 401, 402, 403, 404, 410, 412, 414, 421, 505]
-
-        i = 0
-        while True:
-            try:
-                resp = self.r_req_try(url, method, retry=(i != 0), **kwargs)
-            except (
-                requests.ConnectTimeout,
-                requests.ConnectionError,
-                requests.ReadTimeout,
-                requests.exceptions.ChunkedEncodingError,
-                RequestError,
-            ):
-                resp = None
-
-            if resp is None or not (
-                resp.status_code >= 200 and resp.status_code <= 299
-            ):
-                if resp is not None and resp.status_code in instant_end_code:
-                    raise RequestError(
-                        "failed completely {} {}".format(resp.status_code, url)
-                    )
-                if i >= tries:
-                    raise RequestError(
-                        "failed {} {}".format(
-                            "connection" if resp is None else resp.status_code, url
-                        )
-                    )
-                i += 1
-                if retry_wait != 0:
-                    time.sleep(retry_wait)
-            else:
-                return resp
-
-    def get_html(
-        self, url: str, return_cookies: bool = False, **kwargs
-    ) -> Tuple[reliq, str] | Tuple[reliq, str, dict]:
-        resp = self.r_req(url, **kwargs)
-
-        rq = reliq(resp.text, ref=url)
-        ref = rq.ref
-
-        if return_cookies:
-            return (rq, ref, resp.cookies.get_dict())
-        return (rq, ref)
-
-    def get_json(self, url: str, **kwargs) -> dict:
-        resp = self.r_req(url, **kwargs)
-        return resp.json()
-
-    def post_json(self, url: str, **kwargs) -> dict:
-        resp = self.r_req(url, method="post", **kwargs)
-        return resp.json()
-
-    def delete_json(self, url: str, **kwargs) -> dict:
-        resp = self.r_req(url, method="delete", **kwargs)
-        return resp.json()
-
-    def put_json(self, url: str, **kwargs) -> dict:
-        resp = self.r_req(url, method="put", **kwargs)
-        return resp.json()
-
-
 class hdporncomics:
     """
     kwarg( user_agent: str = "Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0" ) - user agent
@@ -203,8 +88,15 @@ class hdporncomics:
     """
 
     def __init__(self, **kwargs):
-        self.ses = Session(
-            **kwargs,
+        settings = {"visited": False}
+        settings.update(kwargs)
+
+        self.ses = treerequests.Session(
+            requests,
+            requests.Session,
+            lambda x, y: treerequests.reliq(x, y, obj=reliq),
+            requesterror=RequestError,
+            **settings,
         )
 
         self.jwt = ""
@@ -375,10 +267,10 @@ class hdporncomics:
 
         return self.go_through_pages(url, self.get_comments_get)
 
-    def get_comic_comments_onpage_comment(self, rq: reliq, ref: str) -> dict:
+    def get_comic_comments_onpage_comment(self, rq: reliq) -> dict:
         children = []
         for i in rq.filter(r"ul L@[1] .children; li child@").self():
-            children.append(self.get_comic_comments_onpage_comment(i, ref))
+            children.append(self.get_comic_comments_onpage_comment(i))
 
         r = rq.json(
             r"""
@@ -401,20 +293,20 @@ class hdporncomics:
 
         return r
 
-    def get_comic_comments_onpage(self, rq: reliq, ref: str) -> list[dict]:
+    def get_comic_comments_onpage(self, rq: reliq) -> list[dict]:
         comments = []
         for i in rq.filter(
             r"div #form_comments; [0] ol .commentlist; li child@"
         ).self():
-            comments.append(self.get_comic_comments_onpage_comment(i, ref))
+            comments.append(self.get_comic_comments_onpage_comment(i))
 
         return comments
 
-    def get_comic_comments(self, rq: reliq, ref: str, c_id: int, comments: int) -> dict:
+    def get_comic_comments(self, rq: reliq, c_id: int, comments: int) -> dict:
         r = {"comments": [], "comments_pages": 0}
 
         if comments == 0:
-            r["comments"] = self.get_comic_comments_onpage(rq, ref)
+            r["comments"] = self.get_comic_comments_onpage(rq)
             return r
 
         r_comments = []
@@ -435,7 +327,9 @@ class hdporncomics:
     def get_comic_dates(self, rq: reliq) -> dict:
         published = ""
         modified = ""
-        for i in rq.json('[0] script type=application/ld+json | "%i"')["@graph"]:
+        for i in json.loads(rq.search('[0] script type=application/ld+json | "%i"'))[
+            "@graph"
+        ]:
             if i["@type"] == "WebPage":
                 published = i["datePublished"]
                 modified = i["dateModified"]
@@ -463,7 +357,7 @@ class hdporncomics:
 
         if c_id != 0:
             url = self.comic_link_from_id(c_id)
-        rq, ref = self.ses.get_html(url)
+        rq = self.ses.get_html(url)
 
         comic = rq.json(
             r"""
@@ -506,7 +400,7 @@ class hdporncomics:
 
         comic.update(self.get_comic_likes(c_id, likes))
 
-        comic.update(self.get_comic_comments(rq, ref, c_id, comments))
+        comic.update(self.get_comic_comments(rq, c_id, comments))
 
         return comic
 
@@ -522,7 +416,7 @@ class hdporncomics:
         returns( Dictionary of manhwa chapter metadata )
         """
 
-        rq, ref = self.ses.get_html(url)
+        rq = self.ses.get_html(url)
 
         r = rq.json(
             r"""
@@ -543,7 +437,7 @@ class hdporncomics:
 
         r.update(self.get_comic_dates(rq))
 
-        r.update(self.get_comic_comments(rq, ref, r["manhwa"]["id"], comments))
+        r.update(self.get_comic_comments(rq, r["manhwa"]["id"], comments))
 
         return r
 
@@ -562,7 +456,7 @@ class hdporncomics:
 
         if c_id != 0:
             url = self.comic_link_from_id(c_id)
-        rq, ref = self.ses.get_html(url)
+        rq = self.ses.get_html(url)
 
         manhwa = rq.json(
             r"""
@@ -600,7 +494,7 @@ class hdporncomics:
 
         manhwa.update(self.get_comic_likes(c_id, likes))
 
-        manhwa.update(self.get_comic_comments(rq, ref, c_id, comments))
+        manhwa.update(self.get_comic_comments(rq, c_id, comments))
 
         for i in manhwa["chapters"]:
             i["date"] = self.conv_chapter_datetime(i["date"])
@@ -700,7 +594,7 @@ class hdporncomics:
         assert viewsl == i
         return int(n)
 
-    def get_pages_posts(self, rq: reliq, ref: str) -> list[dict]:
+    def get_pages_posts(self, rq: reliq) -> list[dict]:
         posts = rq.json(
             r"""
             .posts div #all-posts; div #B>post-[0-9]* -has@"[0] ins .adsbyexoclick" child@; {
@@ -747,7 +641,7 @@ class hdporncomics:
         return posts
 
     def get_page(self, url: str, page: int = 1) -> dict:
-        rq, ref = self.ses.get_html(url)
+        rq = self.ses.get_html(url)
 
         nexturl = rq.json(r'.u.U [0] * .nav-links; [0] a .next | "%(href)Dv" trim')["u"]
 
@@ -765,7 +659,7 @@ class hdporncomics:
             "page": page,
             "lastpage": lastpage,
             "term_id": term_id,
-            "posts": self.get_pages_posts(rq, ref),
+            "posts": self.get_pages_posts(rq),
         }
 
     def go_through_pages(self, url: str, func: Callable) -> Generator:
@@ -846,7 +740,7 @@ class hdporncomics:
             return True
 
         try:
-            s = Session()
+            s = self.ses.new()
             r = s.post_json(
                 "https://hdporncomics.com/api/auth/login",
                 data={"email": email, "password": password},
@@ -1020,7 +914,7 @@ class hdporncomics:
         returns( Dictionary of site stats )
         """
 
-        rq, ref = self.ses.get_html("https://hdporncomics.com/stats/")
+        rq = self.ses.get_html("https://hdporncomics.com/stats/")
 
         return rq.json(
             r"""
@@ -1052,7 +946,7 @@ class hdporncomics:
         )
 
     def get_gay_or_manhwa_list(self, url: str) -> dict:
-        rq, ref = self.ses.get_html(url)
+        rq = self.ses.get_html(url)
 
         return rq.json(
             r"""
@@ -1141,7 +1035,7 @@ class hdporncomics:
             "https://hdporncomics.com/gay-manga-section/"
         )
 
-    def get_list_page_posts(self, rq: reliq, ref: str) -> list[dict]:
+    def get_list_page_posts(self, rq: reliq) -> list[dict]:
         return rq.json(
             r"""
             .posts [0] section id; div .categoryCard child@; {
@@ -1158,7 +1052,7 @@ class hdporncomics:
         )["posts"]
 
     def get_list_page(self, url: str, page: int = 1) -> dict:
-        rq, ref = self.ses.get_html(url)
+        rq = self.ses.get_html(url)
 
         nexturl = rq.json(r'.u.U [0] * #navigation; [0] a .next | "%(href)Dv" trim')[
             "u"
@@ -1173,7 +1067,7 @@ class hdporncomics:
             "nexturl": nexturl,
             "page": page,
             "lastpage": lastpage,
-            "posts": self.get_list_page_posts(rq, ref),
+            "posts": self.get_list_page_posts(rq),
         }
 
         return ret
@@ -1231,14 +1125,10 @@ class hdporncomics:
         if len(sort) > 0:
             sortinurl = "&orderby={}".format(sort)
 
-        searchinurl = ""
-        if len(search) > 0:
-            searchinurl = "&alphabet={}".format(searchinurl)
+        searchinurl = "&alphabet={}".format(search) if len(search) > 0 else ""
 
-        url = (
-            "https://hdporncomics.com/comics/{}/{}?page&pagename=comics/{}{}{}".format(
-                ctype, pageinurl, ctype, sortinurl, searchinurl
-            )
+        url = "https://hdporncomics.com/comics/{}/{}?page&pagename=comics%2F{}{}{}".format(
+            ctype, pageinurl, ctype, sortinurl, searchinurl
         )
 
         return self.get_comics_list_url(url)
@@ -1541,7 +1431,7 @@ class hdporncomics:
         returns( Dictionary of user metadata )
         """
 
-        rq, ref = self.ses.get_html(url)
+        rq = self.ses.get_html(url)
 
         ret = rq.json(
             r"""
