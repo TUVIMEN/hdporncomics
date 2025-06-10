@@ -2,4 +2,4 @@
 
 . ./env
 
-pytest --pdb -v
+python -m pytest --pdb -v
