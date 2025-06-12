@@ -673,3 +673,7 @@ and the count of comments is 587164
 If your script got interrupted in the middle of scraping, there is a chance that chapter links were not saved to `links` file, you can correct that by running
 
     { find manhwa -type f | xargs jq -r '.chapters[].link'; cat links; } | sort -u | sponge links
+
+## Results
+
+You can see scraped results [here](https://huggingface.co/datasets/hexderm/hdporncomics).
