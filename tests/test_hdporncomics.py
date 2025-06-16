@@ -9,6 +9,8 @@ from datetime import datetime
 import json
 
 sys.path.append(os.path.realpath(os.path.dirname(__file__) + "/.."))
+
+from biggusdictus import *
 from hdporncomics import hdporncomics
 
 hdpo = hdporncomics(wait=1.5)
@@ -18,98 +20,42 @@ hdpol = hdporncomics(wait=1.5)
 hdpol.login(os.environ["HDPORNCOMICS_EMAIL"], os.environ["HDPORNCOMICS_PASSWORD"])
 
 
-def inrange(w, x=0, y=9999999999):
-    assert isinstance(w, int)
-    assert w >= x and w <= y
+def OptUrl(w):
+    return Or(w, Url, isstr, isNone)
 
 
-def isstr(w, x=1, y=9999999999):
-    assert isinstance(w, str)
-    inrange(len(w.strip()), x, y)
+sche = Scheme()
 
 
-def isisodate(d):
-    isstr(d)
-    try:
-        datetime.fromisoformat(d)
-    except:
-        assert 0
-
-
-def urlvalid(url):
-    isstr(url)
-    r = re.match(r"^https?://([a-z0-9A-Z_-]+\.)+[a-zA-Z]+(/|\?|$)", url)
-    assert r is not None
-
-
-def opturlvalid(url):
-    if url is None:
-        return
-
-    if url == "":
-        return
-
-    urlvalid(url)
-
-
-def islist(w, checker, x=-1, y=999999999):
-    assert isinstance(w, list)
-    if x != -1:
-        inrange(len(w), x, y)
-    if checker is not None:
-        for i in w:
-            checker(i)
-
-
-def checkdict_checkers(check):
-    for i in check:
-        assert len(i) >= 2
-
-
-def checkdict(d, *check):
-    assert isinstance(d, dict)
-    checkdict_checkers(check)
-
-    keys = d.keys()
-    assert len(check) == len(keys)
-
-    for i in keys:
-        found = 0
-        for j in check:
-            if i == j[0]:
-                j[1](d[i], *j[2:])
-                found = 1
-                break
-
-        if found == 0:
-            raise Exception("Dictionary key isn't handled")
+def check(data, *args):
+    sche.dict(data, *args)
 
 
 def test_get_stats():
     r = hdpo.get_stats()
 
-    checkdict(
+    check(
         r,
-        ("comics", inrange, 1),
-        ("gay", inrange, 1),
-        ("manhwa", inrange, 1),
-        ("artists", inrange, 1),
-        ("categories", inrange, 1),
-        ("characters", inrange, 1),
-        ("groups", inrange, 1),
-        ("parodies", inrange, 1),
-        ("tags", inrange, 1),
-        ("comments", inrange, 1),
-        ("users", inrange, 1),
-        ("moderators", inrange, 1),
+        ("comics", int, 1),
+        ("gay", int, 1),
+        ("manhwa", int, 1),
+        ("artists", int, 1),
+        ("categories", int, 1),
+        ("characters", int, 1),
+        ("groups", int, 1),
+        ("parodies", int, 1),
+        ("tags", int, 1),
+        ("comments", int, 1),
+        ("users", int, 1),
+        ("moderators", int, 1),
         (
             "most_active_users",
-            islist,
-            lambda x: checkdict(
-                x,
-                ("avatar", opturlvalid),
-                ("link", urlvalid),
-                ("user", isstr),
+            list,
+            (
+                dict,
+                ("avatar", OptUrl),
+                ("link", Url),
+                ("user", str, 1),
             ),
             1,
         ),
@@ -117,25 +63,25 @@ def test_get_stats():
 
 
 def check_comment(c):
-    checkdict(
+    check(
         c,
-        ("id", inrange, 1),
-        ("user", isstr),
-        ("userid", inrange),
-        ("avatar", opturlvalid),
-        ("content", isstr, 0),
-        ("likes", inrange),
-        ("posted", isisodate),
-        ("children", islist, check_comment),
+        ("id", int, 1),
+        ("user", str, 1),
+        ("userid", int),
+        ("avatar", OptUrl),
+        ("content", str),
+        ("likes", int),
+        ("posted", Isodate),
+        ("children", list, check_comment),
     )
 
 
 def check_comments_page(c):
-    checkdict(
+    check(
         c,
-        ("comments", islist, check_comment, 1),
-        ("page", inrange, 1),
-        ("nexturl", opturlvalid),
+        ("comments", list, check_comment, 1),
+        ("page", int, 1),
+        ("nexturl", OptUrl),
     )
 
 
@@ -143,65 +89,63 @@ def test_get_comments():
     for i in hdpo.get_comments(83389, top=True):
         check_comments_page(i)
 
-        inrange(len(i["comments"]), 25)
+        isint(len(i["comments"]), 25)
         break
 
 
 def check_comic(c):
-    checkdict(
+    check(
         c,
-        ("cover", urlvalid),
-        ("title", isstr),
-        ("tags", islist, isstr),
-        ("artists", islist, isstr),
-        ("categories", islist, isstr),
-        ("groups", islist, isstr),
-        ("genres", islist, isstr),
-        ("sections", islist, isstr),
-        ("languages", islist, isstr),
-        ("characters", islist, isstr),
-        ("images_count", inrange),
-        ("published", isisodate),
-        ("modified", isisodate),
-        ("id", inrange, 1),
-        ("images", islist, urlvalid, 1),
+        ("cover", Url),
+        ("title", str, 1),
+        ("tags", list, (str, 1)),
+        ("artists", list, (str, 1)),
+        ("categories", list, (str, 1)),
+        ("groups", list, (str, 1)),
+        ("genres", list, (str, 1)),
+        ("sections", list, (str, 1)),
+        ("languages", list, (str, 1)),
+        ("characters", list, (str, 1)),
+        ("images_count", int),
+        ("published", Isodate),
+        ("modified", Isodate),
+        ("id", int, 1),
+        ("images", list, Url, 1),
         (
             "related",
-            islist,
-            lambda x: checkdict(
-                x,
-                ("name", isstr),
+            list,
+            (
+                dict,
+                ("name", str, 1),
                 (
                     "items",
-                    islist,
-                    lambda x: checkdict(
-                        x, ("cover", urlvalid), ("title", isstr), ("link", urlvalid)
-                    ),
+                    list,
+                    (dict, ("cover", Url), ("title", str, 1), ("link", Url)),
                 ),
             ),
         ),
-        ("comments_count", inrange),
-        ("url", urlvalid),
-        ("likes", inrange),
-        ("dlikes", inrange),
-        ("views", inrange, 1),
-        ("favorites", inrange),
-        ("comments", islist, check_comment),
-        ("comments_pages", inrange),
+        ("comments_count", int),
+        ("url", Url),
+        ("likes", int),
+        ("dlikes", int),
+        ("views", int, 1),
+        ("favorites", int),
+        ("comments", list, check_comment),
+        ("comments_pages", int),
     )
 
 
 def test_get_comic1():
     r = hdpo.get_comic("https://hdporncomics.com/two-princesses-one-yoshi-sex-comic/")
     check_comic(r)
-    inrange(r["views"], 50000)
-    inrange(len(r["tags"]), 3)
-    inrange(len(r["categories"]), 3)
-    inrange(len(r["images"]), 8)
-    inrange(r["images_count"], 8)
-    inrange(r["comments_count"], 3)
+    isint(r["views"], 50000)
+    isint(len(r["tags"]), 3)
+    isint(len(r["categories"]), 3)
+    isint(len(r["images"]), 8)
+    isint(r["images_count"], 8)
+    isint(r["comments_count"], 3)
     isstr(r["title"], 22)
-    inrange(len(r["related"]), 3)
+    isint(len(r["related"]), 3)
 
 
 def test_get_comic2():
@@ -211,8 +155,8 @@ def test_get_comic2():
     check_comic(r)
     assert len(r["artists"]) == 1
     assert len(r["groups"]) == 2
-    inrange(len(r["tags"]), 9)
-    inrange(len(r["characters"]), 2)
+    isint(len(r["tags"]), 9)
+    isint(len(r["characters"]), 2)
 
 
 def test_get_comic3():
@@ -222,45 +166,45 @@ def test_get_comic3():
     )
     check_comic(r)
     assert len(r["sections"]) == 1
-    inrange(len(r["groups"]), 5)
+    isint(len(r["groups"]), 5)
     assert len(r["languages"]) == 1
     assert len(r["genres"]) == 1
     assert len(r["comments"]) == 50
 
 
 def check_manhwa(c):
-    checkdict(
+    check(
         c,
-        ("cover", urlvalid),
-        ("title", isstr),
-        ("artists", islist, isstr),
-        ("authors", islist, isstr),
-        ("genres", islist, isstr),
-        ("altname", isstr),
-        ("status", isstr),
-        ("modified", isisodate),
-        ("published", isisodate),
-        ("id", inrange, 1),
-        ("comments_count", inrange),
-        ("summary", isstr),
+        ("cover", Url),
+        ("title", str, 1),
+        ("artists", list, (str, 1)),
+        ("authors", list, (str, 1)),
+        ("genres", list, (str, 1)),
+        ("altname", str, 1),
+        ("status", str, 1),
+        ("modified", Isodate),
+        ("published", Isodate),
+        ("id", int, 1),
+        ("comments_count", int),
+        ("summary", str, 1),
         (
             "chapters",
-            islist,
-            lambda x: checkdict(
-                x,
-                ("link", urlvalid),
-                ("name", isstr),
-                ("date", isisodate),
+            list,
+            (
+                dict,
+                ("link", Url),
+                ("name", str, 1),
+                ("date", Isodate),
             ),
             1,
         ),
-        ("url", urlvalid),
-        ("likes", inrange),
-        ("dlikes", inrange),
-        ("views", inrange, 1),
-        ("favorites", inrange),
-        ("comments", islist, check_comment),
-        ("comments_pages", inrange),
+        ("url", Url),
+        ("likes", int),
+        ("dlikes", int),
+        ("views", int, 1),
+        ("favorites", int),
+        ("comments", list, check_comment),
+        ("comments_pages", int),
     )
 
 
@@ -273,32 +217,27 @@ def test_get_manhwa():
     assert len(r["chapters"]) == 52
     assert len(r["artists"]) == 1
     assert len(r["authors"]) == 1
-    inrange(len(r["genres"]), 6)
-    inrange(r["views"], 400000)
-    inrange(r["comments_count"], 38)
-    inrange(
+    isint(len(r["genres"]), 6)
+    isint(r["views"], 400000)
+    isint(r["comments_count"], 38)
+    isint(
         len(r["comments"]), 25
     )  # for some reason site does not allow to get more than first page
 
 
 def check_manhwa_chapter(c):
-    checkdict(
+    check(
         c,
-        ("id", inrange, 1),
-        ("title", isstr),
-        (
-            "manhwa",
-            lambda x: checkdict(
-                x, ("link", urlvalid), ("title", isstr), ("id", inrange, 1)
-            ),
-        ),
-        ("images", islist, isstr, 1),
-        ("comments_count", inrange),
-        ("url", urlvalid),
-        ("modified", isisodate),
-        ("published", isisodate),
-        ("comments", islist, check_comment),
-        ("comments_pages", inrange),
+        ("id", int, 1),
+        ("title", str, 1),
+        ("manhwa", dict, ("link", Url), ("title", str, 1), ("id", int, 1)),
+        ("images", list, str, 1),
+        ("comments_count", int),
+        ("url", Url),
+        ("modified", Isodate),
+        ("published", Isodate),
+        ("comments", list, check_comment),
+        ("comments_pages", int),
     )
 
 
@@ -308,41 +247,41 @@ def test_get_manhwa_chapter():
         comments=2,
     )
     check_manhwa_chapter(r)
-    inrange(len(r["comments"]), 25)
+    isint(len(r["comments"]), 25)
     assert len(r["images"]) == 159
 
 
 def check_page(c, manhwa):
-    checkdict(
+    check(
         c,
-        ("url", urlvalid),
-        ("nexturl", opturlvalid),
-        ("page", inrange),
-        ("lastpage", inrange),
-        ("term_id", inrange),
+        ("url", Url),
+        ("nexturl", OptUrl),
+        ("page", int),
+        ("lastpage", int),
+        ("term_id", int),
         (
             "posts",
-            islist,
-            lambda x: checkdict(
-                x,
-                ("id", inrange, 1),
-                ("cover", urlvalid),
-                ("date", isisodate),
-                ("link", urlvalid),
-                ("title", isstr),
-                ("views", inrange),
-                ("images", inrange, (0 if manhwa else 1)),
-                ("likes", inrange),
-                ("dlikes", inrange),
-                ("tags", islist, isstr),
+            list,
+            (
+                dict,
+                ("id", int, 1),
+                ("cover", Url),
+                ("date", Isodate),
+                ("link", Url),
+                ("title", str, 1),
+                ("views", int),
+                ("images", int, (0 if manhwa else 1)),
+                ("likes", int),
+                ("dlikes", int),
+                ("tags", list, (str, 1)),
                 (
                     "chapters",
-                    islist,
-                    lambda y: checkdict(
-                        y,
-                        ("link", urlvalid),
-                        ("title", isstr),
-                        ("date", isisodate),
+                    list,
+                    (
+                        dict,
+                        ("link", Url),
+                        ("title", str, 1),
+                        ("date", Isodate),
                     ),
                 ),
             ),
@@ -364,33 +303,33 @@ def check_pages(pages, maxpages=2, manhwa=False):
 
 def test_get_new():
     for i in check_pages(hdpo.get_new()):
-        inrange(i["lastpage"], 3000)
+        isint(i["lastpage"], 3000)
 
 
 def test_get_gay():
     for i in check_pages(hdpo.get_gay()):
-        inrange(i["lastpage"], 1800)
+        isint(i["lastpage"], 1800)
 
 
 def test_get_manhwas():
     for i in check_pages(hdpo.get_manhwas(), manhwa=True):
-        inrange(i["lastpage"], 70)
+        isint(i["lastpage"], 70)
 
 
 def test_get_comic_series():
     for i in check_pages(hdpo.get_new()):
-        inrange(i["lastpage"], 100)
+        isint(i["lastpage"], 100)
 
 
 def test_search():
     for i in check_pages(hdpo.search("not")):
-        inrange(i["lastpage"], 20)
+        isint(i["lastpage"], 20)
 
 
 def test_get_pages_tag():
     for i in check_pages(hdpo.get_pages("https://hdporncomics.com/tag/spanking/")):
-        inrange(i["lastpage"], 40)
-        inrange(i["term_id"], 1100)
+        isint(i["lastpage"], 40)
+        isint(i["term_id"], 1100)
 
 
 def test_get_user():
@@ -398,69 +337,67 @@ def test_get_user():
         "https://hdporncomics.com/author/yuri-lover/",
     )
 
-    checkdict(
+    check(
         r,
-        ("url", urlvalid),
-        ("id", inrange, 1),
-        ("name", isstr),
-        ("joined", isisodate),
-        ("lastseen", isisodate),
-        ("comments", inrange),
+        ("url", Url),
+        ("id", int, 1),
+        ("name", str, 1),
+        ("joined", Isodate),
+        ("lastseen", Isodate),
+        ("comments", int),
     )
 
-    inrange(r["comments"], 3200)
+    isint(r["comments"], 3200)
 
 
 def check_terms(c):
-    islist(c, lambda x: checkdict(x, ("name", isstr), ("id", inrange, 1)), 1)
+    sche.list(c, (dict, ("name", str, 1), ("id", int, 1)), 1)
 
 
 def test_get_terms_artist():
     r = hdpo.get_terms("artist")
     check_terms(r)
-    inrange(len(r), 14000)
+    isint(len(r), 14000)
 
 
 def test_get_terms_parody():
     r = hdpo.get_terms("parody")
     check_terms(r)
-    inrange(len(r), 1150)
+    isint(len(r), 1150)
 
 
 def test_get_terms_tags():
     r = hdpo.get_terms("tags")
     check_terms(r)
-    inrange(len(r), 1400)
+    isint(len(r), 1400)
 
 
 def test_get_terms_groups():
     r = hdpo.get_terms("groups")
     check_terms(r)
-    inrange(len(r), 2600)
+    isint(len(r), 2600)
 
 
 def test_get_terms_characters():
     r = hdpo.get_terms("characters")
     check_terms(r)
-    inrange(len(r), 6900)
+    isint(len(r), 6900)
 
 
 def test_get_terms_category():
     r = hdpo.get_terms("category")
     check_terms(r)
-    inrange(len(r), 12)
+    isint(len(r), 12)
 
 
 def check_gay_or_manhwa_list(c):
-    checkdict(
+    check(
         c,
-        ("id", inrange, 1),
+        ("id", int, 1),
         (
             "list",
-            islist,
-            lambda x: checkdict(
-                x, ("link", urlvalid), ("name", isstr, 0), ("count", inrange)
-            ),
+            list,
+            (dict, ("link", Url), ("name", str), ("count", int)),
             1,
         ),
     )
@@ -469,61 +406,61 @@ def check_gay_or_manhwa_list(c):
 def test_get_manhwa_artists_list():
     r = hdpo.get_manhwa_artists_list()
     check_gay_or_manhwa_list(r)
-    inrange(len(r["list"]), 1200)
+    isint(len(r["list"]), 1200)
 
 
 def test_get_manhwa_authors_list():
     r = hdpo.get_manhwa_authors_list()
     check_gay_or_manhwa_list(r)
-    inrange(len(r["list"]), 1200)
+    isint(len(r["list"]), 1200)
 
 
 def test_get_manhwa_genres_list():
     r = hdpo.get_manhwa_genres_list()
     check_gay_or_manhwa_list(r)
-    inrange(len(r["list"]), 50)
+    isint(len(r["list"]), 50)
 
 
 def test_get_gay_genres_list():
     r = hdpo.get_gay_genres_list()
     check_gay_or_manhwa_list(r)
-    inrange(len(r["list"]), 25)
+    isint(len(r["list"]), 25)
 
 
 def test_get_gay_groups_list():
     r = hdpo.get_gay_groups_list()
     check_gay_or_manhwa_list(r)
-    inrange(len(r["list"]), 1)
+    isint(len(r["list"]), 1)
 
 
 def test_get_gay_languages_list():
     r = hdpo.get_gay_languages_list()
     check_gay_or_manhwa_list(r)
-    inrange(len(r["list"]), 20)
+    isint(len(r["list"]), 20)
 
 
 def test_get_gay_sections_list():
     r = hdpo.get_gay_sections_list()
     check_gay_or_manhwa_list(r)
-    inrange(len(r["list"]), 500)
+    isint(len(r["list"]), 500)
 
 
 def check_comics_list(c):
-    checkdict(
+    check(
         c,
-        ("url", urlvalid),
-        ("nexturl", opturlvalid),
-        ("page", inrange),
-        ("lastpage", inrange),
+        ("url", Url),
+        ("nexturl", OptUrl),
+        ("page", int),
+        ("lastpage", int),
         (
             "posts",
-            islist,
-            lambda x: checkdict(
-                x,
-                ("cover", urlvalid),
-                ("link", urlvalid),
-                ("name", isstr),
-                ("count", inrange, 1),
+            list,
+            (
+                dict,
+                ("cover", Url),
+                ("link", Url),
+                ("name", str, 1),
+                ("count", int, 1),
             ),
             1,
         ),
@@ -538,7 +475,7 @@ def test_get_comics_list_parodies():
         sort="likes",
     ):
         check_comics_list(i)
-        inrange(i["lastpage"], 50)
+        isint(i["lastpage"], 50)
         if page >= 2:
             break
         page += 1
@@ -552,7 +489,7 @@ def test_get_comics_list_artists():
         sort="favorites",
     ):
         check_comics_list(i)
-        inrange(i["lastpage"], 670)
+        isint(i["lastpage"], 670)
         if page >= 2:
             break
         page += 1
@@ -566,7 +503,7 @@ def test_get_comics_list_groups():
         sort="count",
     ):
         check_comics_list(i)
-        inrange(i["lastpage"], 125)
+        isint(i["lastpage"], 125)
         if page >= 2:
             break
         page += 1
@@ -578,7 +515,7 @@ def test_get_comics_list_categories():
         "categories",
     ):
         check_comics_list(i)
-        inrange(i["lastpage"])
+        int(i["lastpage"])
         if page >= 2:
             break
         page += 1
@@ -591,7 +528,7 @@ def test_get_comics_list_tags():
         page=2,
     ):
         check_comics_list(i)
-        inrange(i["lastpage"], 12)
+        isint(i["lastpage"], 12)
         if page >= 2:
             break
         page += 1
@@ -604,7 +541,7 @@ def test_get_comics_list_characters():
         page=2,
     ):
         check_comics_list(i)
-        inrange(i["lastpage"], 320)
+        isint(i["lastpage"], 320)
         if page >= 2:
             break
         page += 1
@@ -614,7 +551,7 @@ def test_get_comics_list_search():
     page = 1
     for i in hdpo.get_comics_list("characters", page=2, search="the"):
         check_comics_list(i)
-        inrange(i["lastpage"], 5)
+        isint(i["lastpage"], 5)
         if page >= 2:
             break
         page += 1
@@ -632,39 +569,39 @@ def test_guess():
 
 def test_get_dashboard_stats():
     r = hdpol.get_dashboard_stats()
-    checkdict(
+    check(
         r,
-        ("likes", inrange, 1),
-        ("favorites", inrange, 1),
-        ("history", inrange, 1),
-        ("comments", inrange, 1),
+        ("likes", int, 1),
+        ("favorites", int, 1),
+        ("history", int, 1),
+        ("comments", int, 1),
     )
 
 
 def check_history_page(c):
-    checkdict(
+    check(
         c,
-        ("url", urlvalid),
-        ("nexturl", opturlvalid),
-        ("page", inrange),
-        ("lastpage", inrange),
+        ("url", Url),
+        ("nexturl", OptUrl),
+        ("page", int),
+        ("lastpage", int),
         (
             "posts",
-            islist,
-            lambda x: checkdict(
-                x,
-                ("type", isstr),
-                ("id", inrange),
-                ("title", isstr),
-                ("link", urlvalid),
-                ("cover", urlvalid),
-                ("views", inrange),
-                ("likes", inrange),
-                ("dlikes", inrange),
-                ("favorites", inrange),
-                ("comments", inrange),
-                ("created", isisodate),
-                ("modified", isisodate),
+            list,
+            (
+                dict,
+                ("type", str, 1),
+                ("id", int),
+                ("title", str, 1),
+                ("link", Url),
+                ("cover", Url),
+                ("views", int),
+                ("likes", int),
+                ("dlikes", int),
+                ("favorites", int),
+                ("comments", int),
+                ("created", Isodate),
+                ("modified", Isodate),
             ),
             1,
         ),
@@ -702,14 +639,14 @@ def test_get_favorites():
 
 
 def check_subscriptions(c):
-    islist(
+    sche.list(
         c,
-        lambda x: checkdict(
-            x,
-            ("id", inrange),
-            ("name", isstr),
-            ("count", inrange),
-            ("link", urlvalid),
+        (
+            dict,
+            ("id", int),
+            ("name", str, 1),
+            ("count", int),
+            ("link", Url),
         ),
         1,
     )
@@ -721,28 +658,28 @@ def test_get_subscriptions():
 
 
 def check_user_comments_page(c):
-    checkdict(
+    check(
         c,
-        ("url", urlvalid),
-        ("nexturl", opturlvalid),
-        ("page", inrange),
-        ("lastpage", inrange),
+        ("url", Url),
+        ("nexturl", OptUrl),
+        ("page", int),
+        ("lastpage", int),
         (
             "posts",
-            islist,
-            lambda x: checkdict(
-                x,
-                ("id", inrange),
-                ("comic_id", inrange),
-                ("comic_link", urlvalid),
-                ("user", isstr),
-                ("userid", inrange),
-                ("content", isstr),
-                ("parent", inrange),
-                ("date", isisodate),
-                ("likes", inrange),
-                ("replies", inrange),
-                ("avatar", opturlvalid),
+            list,
+            (
+                dict,
+                ("id", int),
+                ("comic_id", int),
+                ("comic_link", Url),
+                ("user", str, 1),
+                ("userid", int),
+                ("content", str, 1),
+                ("parent", int),
+                ("date", Isodate),
+                ("likes", int),
+                ("replies", int),
+                ("avatar", OptUrl),
             ),
             1,
         ),
@@ -846,22 +783,22 @@ def test_subscribe_delete():
 
 
 def check_notifications_page(c):
-    checkdict(
+    check(
         c,
-        ("url", urlvalid),
-        ("nexturl", opturlvalid),
-        ("page", inrange),
-        ("lastpage", inrange),
+        ("url", Url),
+        ("nexturl", OptUrl),
+        ("page", int),
+        ("lastpage", int),
         (
             "notifications",
-            islist,
-            lambda x: checkdict(
-                x,
-                ("title", isstr),
-                ("link", urlvalid),
-                ("type", isstr),
-                ("date", isisodate),
-                ("id", isstr),
+            list,
+            (
+                dict,
+                ("title", str, 1),
+                ("link", Url),
+                ("type", str, 1),
+                ("date", Isodate),
+                ("id", str, 1),
             ),
         ),
     )
@@ -875,7 +812,7 @@ def test_comment():
     for i in hdpol.get_comments(215999):
         check_comments_page(i)
         c = i["comments"]
-        inrange(len(c), 1)
+        isint(len(c), 1)
         assert c[0]["content"] == msg
         assert c[0]["likes"] == 0
         c_id = c[0]["id"]
@@ -885,7 +822,7 @@ def test_comment():
 
     for i in hdpol.get_comments(215999):
         check_comments_page(i)
-        inrange(len(c), 1)
+        isint(len(c), 1)
         c = i["comments"]
         assert c[0]["id"] == c_id
         assert c[0]["likes"] == 1
@@ -895,7 +832,7 @@ def test_comment():
 
     for i in hdpol.get_comments(215999):
         check_comments_page(i)
-        inrange(len(c), 1)
+        isint(len(c), 1)
         c = i["comments"]
         assert c[0]["id"] == c_id
         assert c[0]["likes"] == 0
@@ -919,7 +856,7 @@ def test_get_notifications():
     for i in hdpol.get_comments(188936):
         check_comments_page(i)
         c = i["comments"]
-        inrange(len(c), 1)
+        isint(len(c), 1)
         assert c[0]["content"] == msg
         assert c[0]["likes"] == 0
         c_id = c[0]["id"]
@@ -935,19 +872,19 @@ def test_get_notifications():
     c2_id = 0
     for i in hdpol.get_comments(188936):
         check_comments_page(i)
-        inrange(len(c), 1)
+        isint(len(c), 1)
         c = i["comments"]
         assert c[0]["id"] == c_id
 
         ch = c[0]["children"]
-        inrange(len(ch), 1)
+        isint(len(ch), 1)
         assert ch[0]["content"] == msg2
         c2_id = ch[0]["id"]
         break
 
     for i in hdpol.get_notifications():
         check_notifications_page(i)
-        inrange(len(i["notifications"]), 1)
+        isint(len(i["notifications"]), 1)
         break
 
     assert hdpol.notifications_clean() is True
