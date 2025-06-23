@@ -6,13 +6,16 @@ import sys
 import os
 from pathlib import Path
 import json
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
+import itertools
 from concurrent.futures import ThreadPoolExecutor
 
 import treerequests
 
 from .hdporncomics import hdporncomics
 from .args import argparser
+
+BUNDLE_SIZE = 20
 
 
 def warn(msg: str):
@@ -91,10 +94,8 @@ def image_writable(path: Path, force: bool) -> bool:
     return r is not False
 
 
-def get_image(path: Path, hdpo: hdporncomics, url: str):
-    r = hdpo.ses.get(url).content
-    with open(path, "wb") as f:
-        f.write(r)
+def get_image(hdpo: hdporncomics, img: Tuple[str, str]):
+    return img[0], hdpo.ses.get(img[1]).content
 
 
 def digits_count(n: int) -> int:
@@ -105,31 +106,78 @@ def digits_count(n: int) -> int:
     return r
 
 
-def get_images(path: Path, hdpo: hdporncomics, urls: list[str], settings: dict):
-    if settings["noimages"]:
-        return
-
-    offset = digits_count(len(urls))
+def create_images_names(urls: list[str], settings: dict):
     images = []
-
+    offset = digits_count(len(urls))
     for i, url in enumerate(urls):
-        fname = path / image_fname(url, i + 1, offset, settings["no_num_images"])
+        fname = image_fname(url, i + 1, offset, settings["no_num_images"])
         if not image_writable(fname, settings["force"]):
             continue
         images.append((fname, url))
+    return images
+
+
+def get_images(
+    path: Path, hdpo: hdporncomics, urls: list[str], func: Callable, settings: dict
+):
+    images = create_images_names(urls, settings)
 
     threads = settings["threads"]
     if threads > 1 and len(images) > 0:
         with ThreadPoolExecutor(max_workers=threads) as executor:
-            list(
-                executor.map(
-                    lambda x: get_image(x[0], hdpo, x[1]),
-                    images,
-                )
-            )
+            for i in itertools.batched(images, BUNDLE_SIZE):
+                res = []
+                for j in executor.map(
+                    lambda x: get_image(hdpo, x),
+                    i,
+                ):
+                    res.append(j)
+                for j in res:
+                    func(path, j)
     else:
-        for fname, url in images:
-            get_image(fname, hdpo, url)
+        for i in images:
+            func(path, get_image(hdpo, i))
+
+
+def save_image(path: Path, img: Tuple[str, bytes]):
+    path = path / img[0]
+    path.write_bytes(img[1])
+
+
+def save_images(path: Path, hdpo: hdporncomics, urls: list[str], settings: dict):
+    if settings["noimages"]:
+        return
+
+    formatter = None
+    format = settings["format"]
+
+    if format is None:
+        func = save_image
+    elif format == "pdf":
+        import img2pdf
+
+        formatter = []
+
+        def save_pdf(path, img):
+            formatter.append(img[1])
+
+        func = save_pdf
+    elif format == "cbz":
+        import zipfile
+
+        formatter = zipfile.ZipFile(path, "w", compresslevel=1)
+
+        def save_cbz(path, img):
+            formatter.writestr(img[0], img[1])
+
+        func = save_cbz
+
+    get_images(path, hdpo, urls, func, settings)
+
+    if format == "pdf":
+        path.write_bytes(img2pdf.convert(formatter))
+    elif format == "cbz":
+        formatter.close()
 
 
 def write_info(path: Path, info: dict | list[dict], force: bool):
@@ -176,23 +224,29 @@ def get_comiclike(
     funcnext: Callable,
     settings: dict,
     comments: bool = True,
+    multiple=False,
 ):
     r = func(url)
     dname = path / escape_path(r["title"])
 
-    d = path_writable_dir(dname, settings["force"])
-    if d is False:
-        return
-    if d is True:
-        os.mkdir(dname)
+    if multiple or settings["format"] is None:
+        d = path_writable_dir(dname, settings["force"])
+        if d is False:
+            return
+        if d is True:
+            os.mkdir(dname)
 
-    write_comiclike_info(dname, hdpo, r, settings, comments=comments)
+        write_comiclike_info(dname, hdpo, r, settings, comments=comments)
+    else:
+        dname = Path(str(dname) + "." + settings["format"])
+        if path_writable_file(dname, settings["force"]) is False:
+            return
 
     funcnext(dname, hdpo, r, settings)
 
 
 def get_comic_images(path: Path, hdpo: hdporncomics, info: dict, settings: dict):
-    get_images(path, hdpo, info["images"], settings)
+    save_images(path, hdpo, info["images"], settings)
 
 
 def get_manhwa_chapters(path: Path, hdpo: hdporncomics, info: dict, settings: dict):
@@ -215,7 +269,9 @@ def chapter(path: Path, hdpo: hdporncomics, url: str, settings: dict):
 
 
 def manhwa(path: Path, hdpo: hdporncomics, url: str, settings: dict):
-    get_comiclike(path, hdpo, url, hdpo.get_manhwa, get_manhwa_chapters, settings)
+    get_comiclike(
+        path, hdpo, url, hdpo.get_manhwa, get_manhwa_chapters, settings, multiple=True
+    )
 
 
 def comic(path: Path, hdpo: hdporncomics, url: str, settings: dict):
@@ -259,6 +315,7 @@ def cli(argv: list[str]):
         "nochapters": args.nochapters,
         "comment_limit": args.comment_limit,
         "pages_max": args.pages_max,
+        "format": ("pdf" if args.pdf else None) or ("cbz" if args.cbz else None),
     }
 
     hdpo = hdporncomics(logger=treerequests.simple_logger(sys.stdout))

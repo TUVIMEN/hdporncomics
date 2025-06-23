@@ -76,6 +76,16 @@ def argparser():
         action="store_true",
         help="Don't rename images to their order number with leading zeroes, keep the original name",
     )
+    files.add_argument(
+        "--pdf",
+        action="store_true",
+        help="Store chapters as pdfs",
+    )
+    files.add_argument(
+        "--cbz",
+        action="store_true",
+        help="Store chapters as cbzs",
+    )
 
     types = parser.add_argument_group("Types")
     types.add_argument(

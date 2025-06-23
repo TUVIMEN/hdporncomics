@@ -39,7 +39,7 @@ Myaxx Human Experiments/8.jpg
 Myaxx Human Experiments/info.json
 ```
 
-where `info.json` stores the basic information. By default comments are not scraped if you want to get all comments for all resources use `--comment-limit -1` option.
+where `info.json` stores the basic information. By default comments are not scraped if you want to get all comments for all resources use `--comment-limit -1` option. You can also save chapters as `--pdf` or `--cbz` files instead.
 
 Getting manhwas will create chapters directories under the directory of manhwa.
 
