@@ -475,7 +475,7 @@ class hdporncomics:
             .summary [0] div #summary | "%DT" trim "\n",
             .chapters div #eachChapter; {
                 [0] a; {
-                    .link.U @ | "%(href)v", -- they might have '//' inside them but they are the same as in the browser
+                    .link.U @ | "%(href)v/", -- they might have '//' inside them but they are the same as in the browser
                     .name @ | "%DT"
                 },
                 .date [0] span | "%T" trim "\n"
