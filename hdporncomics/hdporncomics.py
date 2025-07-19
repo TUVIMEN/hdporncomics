@@ -2,7 +2,6 @@
 # by Dominik Stanisław Suchora <hexderm@gmail.com>
 # License: GNU GPLv3
 
-import time
 import random
 import hashlib
 import os
@@ -10,7 +9,7 @@ import re
 import json
 import base64
 from datetime import datetime
-from typing import Optional, Tuple, Generator, Callable
+from typing import Optional, Generator, Callable
 
 import treerequests
 from reliq import RQ

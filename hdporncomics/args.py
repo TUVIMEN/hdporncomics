@@ -14,7 +14,7 @@ __version__ = version(__package__ or __name__)
 def valid_directory(directory: str):
     try:
         return os.chdir(directory)
-    except:
+    except Exception:
         raise argparse.ArgumentTypeError(
             'couldn\'t change directory to "{}"'.format(directory)
         )
