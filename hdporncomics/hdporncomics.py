@@ -73,7 +73,7 @@ class hdporncomics:
 
     kwarg( wait: float = 0 ) - waiting time in seconds in between requests
 
-    kwarg( wait_random: int = 0 ) - random waiting time in milliseconds in between requests
+    kwarg( wait_random: float = 0 ) - random waiting time in seconds in between requests
 
     kwarg( logger: Optional[TextIO] = None ) - file to which requests log will be written, e.g. sys.stderr or sys.stdout
 

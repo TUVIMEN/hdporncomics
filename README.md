@@ -51,9 +51,9 @@ Download only images without metadata using 8 threads (only images are downloade
 
     hdporncomics --directory DIR --threads 8 --images-only URL1 URL2 URL3
 
-Download comics with all comments and wait 1.2 seconds in between requests and randomly up to 800 milliseconds (waiting time doesn't affect downloading images)
+Download comics with all comments and wait 1.2 seconds in between requests and randomly up to 0.8 seconds (waiting time doesn't affect downloading images)
 
-    hdporncomics --directory DIR --wait 1.2 --wait-random 800 URL1 URL2
+    hdporncomics --directory DIR --wait 1.2 --wait-random 0.8 URL1 URL2
 
 Download resources from URLs annotating their type
 
@@ -234,7 +234,7 @@ kwarg( retry_wait: float = 60 ) - waiting time before retrying
 
 kwarg( wait: float = 0 ) - waiting time in seconds in between requests
 
-kwarg( wait_random: int = 0 ) - random waiting time in milliseconds in between requests
+kwarg( wait_random: float = 0 ) - random waiting time in seconds in between requests
 
 kwarg( logger: Optional[TextIO] = None ) - file to which requests log will be written, e.g. sys.stderr or sys.stdout
 
