@@ -101,7 +101,7 @@ Download resources from URLs annotating their type
 
 `--wait FLOAT` - waiting time in seconds
 
-`--wait-random MILISECONDS` - random waiting time up to `MILISECONDS`
+`--wait-random TIME` - random waiting time up to given seconds
 
 `--retries NUM` - number of retries for failed requests
 
