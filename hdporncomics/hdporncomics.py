@@ -81,7 +81,7 @@ class hdporncomics:
 
     Its recommended to set kwarg( wait ).
 
-    Any function requiring being logged in executed without it will raise hdporncomics.Authorization.
+    Any function requiring being logged in executed without it will raise hdporncomics.AuthorizationError.
 
     Any request error will raise hdporncomics.RequestError.
     """
