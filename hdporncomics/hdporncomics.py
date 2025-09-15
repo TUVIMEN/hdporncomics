@@ -67,9 +67,9 @@ class hdporncomics:
 
     kwarg( timeout: int = 30 ) - timeout
 
-    kwarg( retries: int = 3 ) - number of retries in case of non fatal failure
+    kwarg( retry: int = 3 ) - number of retries in case of non fatal failure
 
-    kwarg( retry_wait: float = 60 ) - waiting time before retrying
+    kwarg( retry_delay: float = 60 ) - waiting time before retrying
 
     kwarg( wait: float = 0 ) - waiting time in seconds in between requests
 

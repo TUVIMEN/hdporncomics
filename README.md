@@ -103,9 +103,9 @@ Download resources from URLs annotating their type
 
 `--wait-random TIME` - random waiting time up to given seconds
 
-`--retries NUM` - number of retries for failed requests
+`--retry NUM` - number of retries for failed requests
 
-`--retry-wait FLOAT` - waiting time in seconds between retries
+`--retry-delay FLOAT` - waiting time in seconds between retries
 
 `--timeout SECONDS` - connection timeout
 
@@ -115,11 +115,11 @@ Download resources from URLs annotating their type
 
 `--user-agent UA` - set custom user agent
 
-`--proxies` - set requests proxies dictionary, e.g. -x \'{"http":"127.0.0.1:8080","ftp":"0.0.0.0"}\'
+`--proxy PROXY` - use the specified proxy
 
 `--header` - set header, can be used multiple times e.g. -H 'User: Admin' -H 'Pass: 12345'
 
-`--cookies` - set cookie, can be used multiple times e.g. -b 'auth=8f82ab' -b 'PHPSESSID=qw3r8an829'
+`--cookie` - set cookie, can be used multiple times e.g. -b 'auth=8f82ab' -b 'PHPSESSID=qw3r8an829'
 
 ## Library
 
@@ -228,9 +228,9 @@ kwarg( verify: bool = True ) - use ssl
 
 kwarg( allow_redirects: bool = False ) - allow for redirections
 
-kwarg( retries: int = 3 ) - number of retries in case of non fatal failure
+kwarg( retry: int = 3 ) - number of retries in case of non fatal failure
 
-kwarg( retry_wait: float = 60 ) - waiting time before retrying
+kwarg( retry_delay: float = 60 ) - waiting time before retrying
 
 kwarg( wait: float = 0 ) - waiting time in seconds in between requests
 
