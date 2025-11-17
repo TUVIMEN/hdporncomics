@@ -1039,14 +1039,14 @@ class hdporncomics:
     def get_list_page_posts(self, rq: reliq) -> list[dict]:
         return rq.json(
             r"""
-            .posts [0] section id; div .categoryCard child@; {
+            .posts [0] section id; div -.NativeBox child@; {
                 [0] a; {
                     .cover.U [0] img | "%(src)v",
                     .link.U @ | "%(href)v"
                 },
-                [0] h3; text@ [0] *; {
-                    .name @ / sed "s/ ( [0-9]* )$//" decode trim,
-                    .count.u @ / sed "s/.*(//; s/).*//; s/ //g"
+                [0] h2; {
+                    .name text@ [0] * / sed "s/ ( [0-9]* )$//" decode trim,
+                    .count.u [0] span | "%i"
                 }
             } |
             """
@@ -1060,7 +1060,7 @@ class hdporncomics:
         ]
 
         lastpage = rq.json(
-            r'.l.u [0] * #navigation; [-] a c@[0] .page-numbers i@Et>^[0-9]+$ | "%i"'
+            r'.l.u [0] * #navigation; [-] a c@[0] .inline-flex i@Etf>"[0-9]+" | "%i"'
         )["l"]
 
         ret = {
