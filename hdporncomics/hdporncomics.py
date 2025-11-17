@@ -9,7 +9,7 @@ import re
 import json
 import base64
 from datetime import datetime
-from typing import Optional, Generator, Callable
+from typing import Optional, Iterator, Callable
 
 import treerequests
 from reliq import RQ
@@ -247,14 +247,16 @@ class hdporncomics:
 
         return {"comments": comments, "page": page, "nexturl": nexturl}
 
-    def get_comments(self, c_id: int, page: int = 1, top: bool = False) -> Generator:
+    def get_comments(
+        self, c_id: int, page: int = 1, top: bool = False
+    ) -> Iterator[dict]:
         """
         Gets comments for comic by its id arg( c_id ), starting from arg( page ) page.
 
         If arg( top ) is True they will be sorted by their score, otherwise sorted by date starting from the newest.
 
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comments.json )
-        returns( Generator passing through pages of comments )
+        returns( Iterator passing through pages of comments )
         """
 
         sorttype = "likes" if top else "newest"
@@ -661,7 +663,7 @@ class hdporncomics:
             "posts": self.get_pages_posts(rq),
         }
 
-    def go_through_pages(self, url: str, func: Callable) -> Generator:
+    def go_through_pages(self, url: str, func: Callable) -> Iterator:
         nexturl = url
         page = 1
         while True:
@@ -674,7 +676,7 @@ class hdporncomics:
                 break
             page += 1
 
-    def get_pages(self, url: str) -> Generator:
+    def get_pages(self, url: str) -> Iterator[dict]:
         """
         Gets pages of comics, gay comics or manhwa by arg( url )
 
@@ -682,12 +684,12 @@ class hdporncomics:
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/gay-comic-page.json )
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/manhwa-page.json )
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/artist-page.json )
-        returns( Generator passing through pages of comics )
+        returns( Iterator passing through pages of comics )
         """
 
         return self.go_through_pages(url, self.get_page)
 
-    def get_new(self) -> Generator:
+    def get_new(self) -> Iterator[dict]:
         """
         Gets comics starting from the newest from url( https://hdporncomics.com/ ).
 
@@ -696,7 +698,7 @@ class hdporncomics:
 
         return self.get_pages("https://hdporncomics.com/")
 
-    def get_gay(self) -> Generator:
+    def get_gay(self) -> Iterator[dict]:
         """
         Gets gay comics starting from the newest from url( https://hdporncomics.com/gay-manga/ ).
 
@@ -705,7 +707,7 @@ class hdporncomics:
 
         return self.get_pages("https://hdporncomics.com/gay-manga/")
 
-    def get_manhwas(self) -> Generator:
+    def get_manhwas(self) -> Iterator[dict]:
         """
         Gets manhwas starting from the newest from url( https://hdporncomics.com/manhwa/ ).
 
@@ -714,7 +716,7 @@ class hdporncomics:
 
         return self.get_pages("https://hdporncomics.com/manhwa/")
 
-    def get_comic_series(self) -> Generator:
+    def get_comic_series(self) -> Iterator[dict]:
         """
         Gets series of comics starting from the newest from url( https://hdporncomics.com/comic-series/ ).
 
@@ -724,7 +726,7 @@ class hdporncomics:
         return self.get_pages("https://hdporncomics.com/comic-series/")
 
     @staticmethod
-    def get_fingerprint():
+    def get_fingerprint() -> str:
         return strtomd5(str(random.randint(0, 10**20)))
 
     def login(self, email: str = "", password: str = "") -> bool:
@@ -1071,20 +1073,20 @@ class hdporncomics:
 
         return ret
 
-    def get_comics_list_url(self, url: str) -> Generator:
+    def get_comics_list_url(self, url: str) -> Iterator[dict]:
         """
         Gets list of comic terms from arg( url ).
 
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-artists-list.json )
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-groups-list.json )
-        returns( Generator passing through pages of comic terms )
+        returns( Iterator passing through pages of comic terms )
         """
 
         return self.go_through_pages(url, self.get_list_page)
 
     def get_comics_list(
         self, ctype: str, page: int = 1, sort: str = "", search: str = ""
-    ) -> Generator:
+    ) -> Iterator[dict]:
         """
         Initiates method( get_comics_list_url ).
 
@@ -1098,7 +1100,7 @@ class hdporncomics:
 
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-artists-list.json )
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-groups-list.json )
-        returns( Generator passing through pages of comic terms )
+        returns( Iterator passing through pages of comic terms )
         """
 
         possible_sort = ["likes", "views", "favorites", "count"]
@@ -1255,12 +1257,12 @@ class hdporncomics:
             "posts": posts,
         }
 
-    def get_history(self) -> Generator:
+    def get_history(self) -> Iterator[dict]:
         """
         Gets a list of viewed comics of logged in user.
 
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/history.json )
-        returns( Generator passing through pages of viewed comics )
+        returns( Iterator passing through pages of viewed comics )
         """
 
         self._logged()
@@ -1269,12 +1271,12 @@ class hdporncomics:
             self.get_history_page,
         )
 
-    def get_liked(self) -> Generator:
+    def get_liked(self) -> Iterator[dict]:
         """
         Gets a list of liked comics of logged in user.
 
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/liked.json )
-        returns( Generator passing through pages of liked comics )
+        returns( Iterator passing through pages of liked comics )
         """
 
         self._logged()
@@ -1283,12 +1285,12 @@ class hdporncomics:
             self.get_history_page,
         )
 
-    def get_favorites(self) -> Generator:
+    def get_favorites(self) -> Iterator[dict]:
         """
         Gets a list of favored comics of logged in user.
 
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/favorites.json )
-        returns( Generator passing through pages of favored comics )
+        returns( Iterator passing through pages of favored comics )
         """
 
         self._logged()
@@ -1352,12 +1354,12 @@ class hdporncomics:
             "posts": posts,
         }
 
-    def get_user_comments(self) -> Generator:
+    def get_user_comments(self) -> Iterator[dict]:
         """
         Gets a list of comments made by logged in user.
 
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/user-comments.json )
-        returns( Generator passing through pages of comments )
+        returns( Iterator passing through pages of comments )
         """
 
         self._logged()
@@ -1393,7 +1395,7 @@ class hdporncomics:
             "notifications": notifications,
         }
 
-    def get_notifications(self) -> Generator:
+    def get_notifications(self) -> Iterator[dict]:
         """
         Gets notifications for logged in user
 
@@ -1401,7 +1403,7 @@ class hdporncomics:
 
         exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/notifications.json )
 
-        returns( Generator passing through notification pages )
+        returns( Iterator passing through notification pages )
         """
 
         self._logged()
@@ -1446,7 +1448,7 @@ class hdporncomics:
         ret["url"] = url
         return ret
 
-    def search(self, search: str) -> Generator:
+    def search(self, search: str) -> Iterator[dict]:
         """
         Searches for arg( search ) in titles of comics
 

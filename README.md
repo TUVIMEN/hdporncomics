@@ -278,7 +278,7 @@ Comic can be deleted from history for logged in user.
 
 returns( True for success )
 
-#### get_comments(self, c_id: int, page: int = 1, top: bool = False) -> Generator
+#### get_comments(self, c_id: int, page: int = 1, top: bool = False) -> Iterator[dict]
 
 Gets comments for comic by its id arg( c_id ), starting from arg( page ) page.
 
@@ -286,7 +286,7 @@ If arg( top ) is True they will be sorted by their score, otherwise sorted by da
 
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comments.json )
 
-returns( Generator passing through pages of comments )
+returns( Iterator passing through pages of comments )
 
 #### get_comic(self, url: str, c_id: int = 0, comments: int = 0, likes: bool = True) -> dict
 
@@ -336,7 +336,7 @@ Downloads comic into a file passing all arguments to method( get_comic ).
 
 returns( file name or None if file already exists )
 
-#### get_pages(self, url: str) -> Generator
+#### get_pages(self, url: str) -> Iterator[dict]
 
 Gets pages of comics, gay comics or manhwa by arg( url )
 
@@ -348,27 +348,27 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/artist-page.json )
 
-returns( Generator passing through pages of comics )
+returns( Iterator passing through pages of comics )
 
-#### get_new(self) -> Generator
+#### get_new(self) -> Iterator[dict]
 
 Gets comics starting from the newest from url( https://hdporncomics.com/ ).
 
 returns( initialized method( get_pages ) )
 
-#### get_gay(self) -> Generator
+#### get_gay(self) -> Iterator[dict]
 
 Gets gay comics starting from the newest from url( https://hdporncomics.com/gay-manga/ ).
 
 returns( initialized method( get_pages ) )
 
-#### get_manhwas(self) -> Generator
+#### get_manhwas(self) -> Iterator[dict]
 
 Gets manhwas starting from the newest from url( https://hdporncomics.com/manhwa/ ).
 
 returns( initialized method( get_pages ) )
 
-#### get_comic_series(self) -> Generator
+#### get_comic_series(self) -> Iterator[dict]
 
 Gets series of comics starting from the newest from url( https://hdporncomics.com/comic-series/ ).
 
@@ -494,7 +494,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of gay comic sections )
 
-#### get_comics_list_url(self, url: str) -> Generator
+#### get_comics_list_url(self, url: str) -> Iterator[dict]
 
 Gets list of comic terms from arg( url ).
 
@@ -502,11 +502,11 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-groups-list.json )
 
-returns( Generator passing through pages of comic terms )
+returns( Iterator passing through pages of comic terms )
 
 return self.go_through_pages(url, self.get_list_page)
 
-#### get_comics_list(self, ctype: str, page: int = 1, sort: str = "", search: str = "") -> Generator
+#### get_comics_list(self, ctype: str, page: int = 1, sort: str = "", search: str = "") -> Iterator[dict]
 
 Initiates method( get_comics_list_url ).
 
@@ -522,7 +522,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/comic-groups-list.json )
 
-returns( Generator passing through pages of comic terms )
+returns( Iterator passing through pages of comic terms )
 
 #### get_terms(self, ctype: str) -> list
 
@@ -556,29 +556,29 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Dictionary of dashboard stats )
 
-#### get_history(self) -> Generator
+#### get_history(self) -> Iterator[dict]
 
 Gets a list of viewed comics of logged in user.
 
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/history.json )
 
-returns( Generator passing through pages of viewed comics )
+returns( Iterator passing through pages of viewed comics )
 
-#### get_liked(self) -> Generator
+#### get_liked(self) -> Iterator[dict]
 
 Gets a list of liked comics of logged in user.
 
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/liked.json )
 
-returns( Generator passing through pages of liked comics )
+returns( Iterator passing through pages of liked comics )
 
-#### get_favorites(self) -> Generator
+#### get_favorites(self) -> Iterator[dict]
 
 Gets a list of favored comics of logged in user.
 
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/favorites.json )
 
-returns( Generator passing through pages of favored comics )
+returns( Iterator passing through pages of favored comics )
 
 #### get_subscriptions(self) -> list[dict]
 
@@ -588,15 +588,15 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( List of subscribed terms )
 
-#### get_user_comments(self) -> Generator
+#### get_user_comments(self) -> Iterator[dict]
 
 Gets a list of comments made by logged in user.
 
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/user-comments.json )
 
-returns( Generator passing through pages of comments )
+returns( Iterator passing through pages of comments )
 
-#### get_notifications(self) -> Generator
+#### get_notifications(self) -> Iterator[dict]
 
 Gets notifications for logged in user
 
@@ -605,7 +605,7 @@ It doesn't remove them, for that use method( notifications_clean )
 exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/master/examples/notifications.json )
 
 
-returns( Generator passing through notification pages )
+returns( Iterator passing through notification pages )
 
 #### notifications_clean(self) -> bool
 
@@ -621,7 +621,7 @@ exampleout( https://raw.githubusercontent.com/TUVIMEN/hdporncomics/refs/heads/ma
 
 returns( Dictionary of user metadata )
 
-#### search(self, search: str) -> Generator
+#### search(self, search: str) -> Iterator[dict]
 
 Searches for arg( search ) in titles of comics
 
