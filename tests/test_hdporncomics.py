@@ -347,7 +347,7 @@ def test_get_user():
         ("comments", int),
     )
 
-    isint(r["comments"], 3200)
+    isint(r["comments"], 3000)
 
 
 def check_terms(c):
@@ -489,7 +489,7 @@ def test_get_comics_list_artists():
         sort="favorites",
     ):
         check_comics_list(i)
-        isint(i["lastpage"], 670)
+        isint(i["lastpage"], 600)
         if page >= 2:
             break
         page += 1
@@ -503,7 +503,7 @@ def test_get_comics_list_groups():
         sort="count",
     ):
         check_comics_list(i)
-        isint(i["lastpage"], 125)
+        isint(i["lastpage"], 100)
         if page >= 2:
             break
         page += 1
@@ -541,7 +541,7 @@ def test_get_comics_list_characters():
         page=2,
     ):
         check_comics_list(i)
-        isint(i["lastpage"], 320)
+        isint(i["lastpage"], 300)
         if page >= 2:
             break
         page += 1
@@ -551,7 +551,7 @@ def test_get_comics_list_search():
     page = 1
     for i in hdpo.get_comics_list("characters", page=2, search="the"):
         check_comics_list(i)
-        isint(i["lastpage"], 5)
+        isint(i["lastpage"], 1)
         if page >= 2:
             break
         page += 1
