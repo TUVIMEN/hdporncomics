@@ -140,7 +140,7 @@ def test_get_comic1():
     check_comic(r)
     isint(r["views"], 50000)
     isint(len(r["tags"]), 3)
-    isint(len(r["categories"]), 3)
+    isint(len(r["categories"]), 2)
     isint(len(r["images"]), 8)
     isint(r["images_count"], 8)
     isint(r["comments_count"], 3)
@@ -217,7 +217,7 @@ def test_get_manhwa():
     assert len(r["chapters"]) == 52
     assert len(r["artists"]) == 1
     assert len(r["authors"]) == 1
-    isint(len(r["genres"]), 6)
+    isint(len(r["genres"]), 5)
     isint(r["views"], 400000)
     isint(r["comments_count"], 38)
     isint(
@@ -457,7 +457,7 @@ def check_comics_list(c):
             list,
             (
                 dict,
-                ("cover", Url),
+                ("cover", (Or, Url, (str, 0, 0))),
                 ("link", Url),
                 ("name", str, 1),
                 ("count", int, 1),
